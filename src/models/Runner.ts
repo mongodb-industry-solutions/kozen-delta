@@ -9,16 +9,16 @@ export interface IRunner {
     configure(request: IRequest): Promise<ISource>;
 
     /**
-     * compare to databases to find differeces
+     * Compare two database states 
      * @param request
      */
     compare(request?: IRequest): Promise<IResult>;
 
     /**
-     * Check errors in the migration file
+     * Check errors in the migration files
      * @param request 
      */
-    check(request?: IRequest): Promise<IResult>;
+    check(change: IChange, request?: IRequest): Promise<IResult>;
 
     /**
      * Create a migration file as example

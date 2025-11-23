@@ -4,6 +4,8 @@ import { IResult } from "@/models/Result";
 import { IRunner } from "@/models/Runner";
 import { ISource } from "@/models/Source";
 import { MongoClient, Db } from "mongodb";
+import { writeFile, readFile } from "fs/promises";
+import { join } from "path";
 
 export class MdbRunner implements IRunner {
     public assistant: any; // IIoC type not available in context, using any
@@ -13,7 +15,35 @@ export class MdbRunner implements IRunner {
     private db!: Db;
 
     async create(request?: IRequest): Promise<IResult> {
-        throw new Error("Method not implemented.");
+        const req = request || {} as IRequest;
+        const name = req.params?.name || "migration";
+        const env = req.params?.env || "dev";
+        const path = req.path || process.cwd();
+
+        const timestamp = new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 14);
+        const fileName = `${timestamp}-${env}-${name}.ts`;
+
+        try {
+            // Read template
+            const templatePath = join(process.cwd(), 'docs', 'templates', 'mdb');
+            const template = await readFile(join(templatePath, 'migration.ts'), 'utf-8');
+
+            await writeFile(join(path, fileName), template, { mode: 0o644 });
+
+            return {
+                success: true,
+                message: "Migration file created",
+                data: {
+                    file: fileName
+                }
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                message: "Failed to create migration file",
+                data: error.message
+            };
+        }
     }
 
     async configure(request: IRequest): Promise<ISource> {
