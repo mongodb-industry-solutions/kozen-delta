@@ -99,6 +99,19 @@ export class MigrationService extends BaseService implements IRunner {
         }
     }
 
+    async create(req: IRequest): Promise<IResult> {
+        try {
+            const { runner } = await this.getDrivers(req);
+            return await runner.create(req);
+        } catch (error) {
+            return {
+                success: false,
+                message: `Failed to compare sources: ${(error as Error).message}`,
+                data: null
+            };
+        }
+    }
+
     async compare(req: IRequest): Promise<IResult> {
         try {
             const { runner } = await this.getDrivers(req);

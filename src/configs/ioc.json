@@ -106,5 +106,23 @@
                 "type": "ref"
             }
         ]
+    },
+    "delta:tracker:sqlite": {
+        "target": "SqliteTracker",
+        "type": "class",
+        "lifetime": "transient",
+        "path": "drivers/trackers",
+        "dependencies": [
+            {
+                "key": "assistant",
+                "target": "IoC",
+                "type": "ref"
+            },
+            {
+                "key": "logger",
+                "target": "logger:service",
+                "type": "ref"
+            }
+        ]
     }
 }
