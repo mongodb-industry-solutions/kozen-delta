@@ -45,7 +45,8 @@
   "dependencies": {
     "@kozen/engine": "^1.1.13",
     "aws-sdk": "^2.1692.0",
-    "mongodb": "^6.17.0"
+    "mongodb": "^6.17.0",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@types/node": "^18.19.127",
