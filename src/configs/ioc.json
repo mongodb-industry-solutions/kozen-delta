@@ -17,24 +17,6 @@
             }
         ]
     },
-    "delta:driver:mdb": {
-        "target": "MdbService",
-        "type": "class",
-        "lifetime": "transient",
-        "path": "services",
-        "dependencies": [
-            {
-                "key": "assistant",
-                "target": "IoC",
-                "type": "ref"
-            },
-            {
-                "key": "logger",
-                "target": "logger:service",
-                "type": "ref"
-            }
-        ]
-    },
     "delta:runner:mdb": {
         "target": "MdbRunner",
         "type": "class",

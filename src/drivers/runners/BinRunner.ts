@@ -6,6 +6,8 @@ import { ISource } from "@/models/Source";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { existsSync } from "fs";
+import { writeFile, readFile } from "fs/promises";
+import { join } from "path";
 
 const execAsync = promisify(exec);
 
@@ -14,7 +16,39 @@ export class BinRunner implements IRunner {
     protected program!: string;
 
     async create(request?: IRequest): Promise<IResult> {
-        throw new Error("Method not implemented.");
+        const req = request || {} as IRequest;
+        const name = req.params?.name || "migration";
+        const env = req.params?.env || "dev";
+        const path = req.path || process.cwd();
+
+        const timestamp = new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 14);
+        const commitFile = `${timestamp}-${env}-${name}-commit.sh`; // Assuming .sh for BinRunner default
+        const rollbackFile = `${timestamp}-${env}-${name}-rollback.sh`;
+
+        try {
+            // Read templates
+            const templatePath = join(process.cwd(), 'docs', 'templates', 'bin');
+            const commitTemplate = await readFile(join(templatePath, 'commit.sh'), 'utf-8');
+            const rollbackTemplate = await readFile(join(templatePath, 'rollback.sh'), 'utf-8');
+
+            await writeFile(join(path, commitFile), commitTemplate, { mode: 0o755 });
+            await writeFile(join(path, rollbackFile), rollbackTemplate, { mode: 0o755 });
+
+            return {
+                success: true,
+                message: "Migration files created",
+                data: {
+                    commit: commitFile,
+                    rollback: rollbackFile
+                }
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                message: "Failed to create migration files",
+                data: error.message
+            };
+        }
     }
 
     async configure(request: IRequest): Promise<ISource> {

@@ -12,26 +12,18 @@ export abstract class BaseTracker implements ITracker {
     abstract add(changes: Array<IChange>, request?: IRequest): Promise<IResult>;
     abstract delete(changes: Array<IChange>, request?: IRequest): Promise<IResult>;
     abstract list(request?: IRequest): Promise<Array<IChange>>;
-    abstract status(request?: IRequest): Promise<IResult>;
 
-    async available(request: IRequest): Promise<Array<IChange>> {
+    protected async scan(path: string): Promise<Array<IChange>> {
         const changes: Array<IChange> = [];
-        const path = request.path || process.cwd();
-
         try {
             const files = await readdir(path);
-            const filterText = request.filter?.tag || "";
-
             for (const file of files) {
-                if (filterText && !file.includes(filterText)) {
-                    continue;
-                }
-
                 const filePath = join(path, file);
                 const fileStat = await stat(filePath);
-
                 if (fileStat.isFile()) {
                     const parsed = parse(file);
+                    // Basic validation of the filename format could go here if needed
+                    // But for now we just list them all and let available/status filter
                     changes.push({
                         id: parsed.name,
                         name: parsed.name,
@@ -42,20 +34,86 @@ export abstract class BaseTracker implements ITracker {
                     });
                 }
             }
+            // Sort by name (which includes timestamp) to ensure sequential order
+            changes.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         } catch (error) {
             console.error(`Error reading directory ${path}:`, error);
-            // Return empty list or throw? Returning empty list seems safer for now, but maybe logging is enough.
         }
-
         return changes;
     }
 
-    async missing(request: IRequest): Promise<Array<IChange>> {
-        const availableChanges = await this.available(request);
+    async available(request: IRequest): Promise<Array<IChange>> {
+        const path = request.path || process.cwd();
+        const allFiles = await this.scan(path);
         const appliedChanges = await this.list(request);
 
-        const appliedIds = new Set(appliedChanges.map(c => c.id));
+        // If no changes applied, all are available
+        if (appliedChanges.length === 0) {
+            return allFiles;
+        }
 
-        return availableChanges.filter(change => !appliedIds.has(change.id));
+        // Sort applied changes by ID (timestamp) just in case
+        appliedChanges.sort((a, b) => (a.id || "").localeCompare(b.id || ""));
+        const lastApplied = appliedChanges[appliedChanges.length - 1];
+
+        // Filter files that are lexicographically greater than the last applied ID
+        return allFiles.filter(change => (change.id || "") > (lastApplied.id || ""));
+    }
+
+    async status(request?: IRequest): Promise<IResult> {
+        const req = request || {} as IRequest;
+        const path = req.path || process.cwd();
+
+        const allFiles = await this.scan(path);
+        const appliedChanges = await this.list(req);
+
+        // Sort for consistent logic
+        allFiles.sort((a, b) => (a.id || "").localeCompare(b.id || ""));
+        appliedChanges.sort((a, b) => (a.id || "").localeCompare(b.id || ""));
+
+        const appliedIds = new Set(appliedChanges.map(c => c.id || ""));
+        const lastApplied = appliedChanges.length > 0 ? appliedChanges[appliedChanges.length - 1] : null;
+
+        const pending: Array<IChange> = [];
+        const lost: Array<IChange> = [];
+
+        if (lastApplied) {
+            for (const file of allFiles) {
+                if ((file.id || "") > (lastApplied.id || "")) {
+                    pending.push(file);
+                } else if (!appliedIds.has(file.id || "")) {
+                    // It's older or equal to last applied, but not in the applied list
+                    lost.push(file);
+                }
+            }
+        } else {
+            // Nothing applied, everything is pending
+            pending.push(...allFiles);
+        }
+
+        return {
+            success: true,
+            message: "Status retrieved successfully",
+            data: {
+                applied: appliedChanges.length,
+                last_applied: lastApplied,
+                pending: pending.length,
+                lost: lost.length,
+                details: {
+                    pending_files: pending.map(c => c.name),
+                    lost_files: lost.map(c => c.name)
+                }
+            }
+        };
+    }
+
+    async missing(request: IRequest): Promise<Array<IChange>> {
+        // 'missing' is often synonymous with 'available' or 'pending' in this context,
+        // but strictly speaking 'missing' usually means "in code but not in DB".
+        // The 'available' implementation now covers "pending execution".
+        // If 'missing' implies "skipped/lost", we might want to return the 'lost' list from status.
+        // However, based on previous implementation, it filtered available vs applied.
+        // Let's stick to the new 'available' logic which returns what needs to be run.
+        return this.available(request);
     }
 }
