@@ -18,7 +18,7 @@ export class MshRunner extends BinRunner {
 
         try {
             // Read templates
-            const templatePath = join(process.cwd(), 'docs', 'templates', 'msh');
+            const templatePath = join(__dirname, '../../templates/msh');
             const commitTemplate = await readFile(join(templatePath, 'commit.js'), 'utf-8');
             const rollbackTemplate = await readFile(join(templatePath, 'rollback.js'), 'utf-8');
 
