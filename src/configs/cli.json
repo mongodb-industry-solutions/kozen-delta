@@ -1,0 +1,30 @@
+{
+    "delta:controller:cli": {
+        "target": "DeltaCLIController",
+        "type": "class",
+        "lifetime": "transient",
+        "path": "controllers",
+        "dependencies": [
+            {
+                "key": "assistant",
+                "target": "IoC",
+                "type": "ref"
+            },
+            {
+                "key": "logger",
+                "target": "logger:service",
+                "type": "ref"
+            },
+            {
+                "key": "srvTrigger",
+                "target": "trigger:service",
+                "type": "ref"
+            },
+            {
+                "key": "srvFile",
+                "target": "core:file",
+                "type": "ref"
+            }
+        ]
+    }
+}

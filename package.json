@@ -1,0 +1,58 @@
+{
+  "name": "@kozen/delta",
+  "version": "1.0.5",
+  "description": "Module for the Kozen framework that provides support for CaC",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/*",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "start": "npm run bin:kozen:js --config=kozen.js.json",
+    "dev": "npm run bin:kozen:ts --config=kozen.ts.json",
+    "build": "tsc && npm run copy:txt",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "copy:txt": "copyfiles -u 1 src/**/*.txt dist/",
+    "bin:kozen:ts": "ts-node node_modules/@kozen/engine/dist/bin/kozen.js",
+    "bin:kozen:js": "npx kozen"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mongodb-industry-solutions/kozen-delta.git"
+  },
+  "keywords": [
+    "kozen",
+    "mongodb",
+    "CaC",
+    "seeder",
+    "changes",
+    "migration"
+  ],
+  "author": "MongoDB Solutions Assurance Team",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mongodb-industry-solutions/kozen-delta/issues"
+  },
+  "homepage": "https://github.com/mongodb-industry-solutions/kozen-delta/wiki",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@kozen/engine": "^1.1.13",
+    "aws-sdk": "^2.1692.0",
+    "mongodb": "^6.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.127",
+    "copyfiles": "^2.4.1",
+    "cross-env": "^7.0.3",
+    "ts-node": "^10.9.0",
+    "tslint": "^5.8.0",
+    "typescript": "^5.0.0"
+  }
+}

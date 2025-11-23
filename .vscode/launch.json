@@ -1,0 +1,63 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "🛠️ JavaScript",
+      "runtimeExecutable": "npx",
+      "console": "integratedTerminal",
+      "runtimeArgs": [
+        "kozen"
+      ],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "env": {
+        "KOZEN_CONFIG": "kozen.js.json",
+        "KOZEN_LOG_LEVEL": "INFO",
+        "KOZEN_LOG_TYPE": "object"
+      },
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "🛠️ TypeScript",
+      "runtimeExecutable": "ts-node",
+      "console": "integratedTerminal",
+      "runtimeArgs": [
+        "node_modules/@kozen/engine/dist/bin/kozen.js"
+      ],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "env": {
+        "KOZEN_CONFIG": "kozen.ts.json",
+        "KOZEN_LOG_LEVEL": "INFO",
+        "KOZEN_LOG_TYPE": "object"
+      },
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "📁 Debug Current File",
+      "program": "${file}",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "runtimeArgs": [
+        "-r",
+        "ts-node/register"
+      ],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "cwd": "${workspaceFolder}"
+    }
+  ],
+  "inputs": []
+}
