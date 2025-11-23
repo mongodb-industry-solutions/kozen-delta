@@ -25,7 +25,7 @@ export class MdbRunner implements IRunner {
 
         try {
             // Read template
-            const templatePath = join(process.cwd(), 'docs', 'templates', 'mdb');
+            const templatePath = join(__dirname, '../../templates/mdb');
             const template = await readFile(join(templatePath, 'migration.ts'), 'utf-8');
 
             await writeFile(join(path, fileName), template, { mode: 0o644 });

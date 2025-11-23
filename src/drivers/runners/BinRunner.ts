@@ -27,7 +27,7 @@ export class BinRunner implements IRunner {
 
         try {
             // Read templates
-            const templatePath = join(process.cwd(), 'docs', 'templates', 'bin');
+            const templatePath = join(__dirname, '../../templates/bin');
             const commitTemplate = await readFile(join(templatePath, 'commit.sh'), 'utf-8');
             const rollbackTemplate = await readFile(join(templatePath, 'rollback.sh'), 'utf-8');
 

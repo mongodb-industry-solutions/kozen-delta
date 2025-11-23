@@ -108,12 +108,22 @@ export abstract class BaseTracker implements ITracker {
     }
 
     async missing(request: IRequest): Promise<Array<IChange>> {
-        // 'missing' is often synonymous with 'available' or 'pending' in this context,
-        // but strictly speaking 'missing' usually means "in code but not in DB".
-        // The 'available' implementation now covers "pending execution".
-        // If 'missing' implies "skipped/lost", we might want to return the 'lost' list from status.
-        // However, based on previous implementation, it filtered available vs applied.
-        // Let's stick to the new 'available' logic which returns what needs to be run.
-        return this.available(request);
+        const path = request.path || process.cwd();
+        const allFiles = await this.scan(path);
+        const appliedChanges = await this.list(request);
+
+        if (appliedChanges.length === 0) {
+            return [];
+        }
+
+        appliedChanges.sort((a, b) => (a.id || "").localeCompare(b.id || ""));
+        const lastApplied = appliedChanges[appliedChanges.length - 1];
+        const appliedIds = new Set(appliedChanges.map(c => c.id || ""));
+
+        // Filter files that are older or equal to last applied, but not in applied list
+        return allFiles.filter(change =>
+            (change.id || "") <= (lastApplied.id || "") &&
+            !appliedIds.has(change.id || "")
+        );
     }
 }
