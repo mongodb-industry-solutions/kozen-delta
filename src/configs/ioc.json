@@ -1,0 +1,110 @@
+{
+    "delta:service": {
+        "target": "DeltaService",
+        "type": "class",
+        "lifetime": "transient",
+        "path": "services",
+        "dependencies": [
+            {
+                "key": "assistant",
+                "target": "IoC",
+                "type": "ref"
+            },
+            {
+                "key": "logger",
+                "target": "logger:service",
+                "type": "ref"
+            }
+        ]
+    },
+    "delta:driver:mdb": {
+        "target": "MdbService",
+        "type": "class",
+        "lifetime": "transient",
+        "path": "services",
+        "dependencies": [
+            {
+                "key": "assistant",
+                "target": "IoC",
+                "type": "ref"
+            },
+            {
+                "key": "logger",
+                "target": "logger:service",
+                "type": "ref"
+            }
+        ]
+    },
+    "delta:runner:mdb": {
+        "target": "MdbRunner",
+        "type": "class",
+        "lifetime": "transient",
+        "path": "drivers/runners",
+        "dependencies": [
+            {
+                "key": "assistant",
+                "target": "IoC",
+                "type": "ref"
+            },
+            {
+                "key": "logger",
+                "target": "logger:service",
+                "type": "ref"
+            }
+        ]
+    },
+    "delta:runner:bin": {
+        "target": "BinRunner",
+        "type": "class",
+        "lifetime": "transient",
+        "path": "drivers/runners",
+        "dependencies": [
+            {
+                "key": "assistant",
+                "target": "IoC",
+                "type": "ref"
+            },
+            {
+                "key": "logger",
+                "target": "logger:service",
+                "type": "ref"
+            }
+        ]
+    },
+    "delta:runner:msh": {
+        "target": "MshRunner",
+        "type": "class",
+        "lifetime": "transient",
+        "path": "drivers/runners",
+        "dependencies": [
+            {
+                "key": "assistant",
+                "target": "IoC",
+                "type": "ref"
+            },
+            {
+                "key": "logger",
+                "target": "logger:service",
+                "type": "ref"
+            }
+        ]
+    },
+    "delta:tracker:mdb": {
+        "target": "MdbTracker",
+        "type": "class",
+        "lifetime": "transient",
+        "path": "drivers/trackers",
+        "dependencies": [
+            {
+                "key": "assistant",
+                "target": "IoC",
+                "type": "ref"
+            },
+            {
+                "key": "logger",
+                "target": "logger:service",
+                "type": "ref"
+            }
+        ]
+    }
+}
