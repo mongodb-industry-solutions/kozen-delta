@@ -5,10 +5,11 @@
  * @version 1.0.6
  */
 
-import { MongoClient, MongoClientOptions } from "mongodb";
+import { Collection, Db, MongoClient, MongoClientOptions } from "mongodb";
 import { ILogger, IIoC } from "@kozen/engine";
-import { IMdbClientOpts } from "./MdbClientOpt";
+import { IMdbClientOpt } from "./MdbClientOpt";
 import AWS from 'aws-sdk';
+import mdbOpt from '../configs/mdb.json';
 
 /**
  * @class ReportManagerMDB
@@ -29,7 +30,7 @@ export class MdbClient {
      * @protected
      * @type {IMdbCl | undefined}
      */
-    protected _options?: IMdbClientOpts;
+    protected _options?: IMdbClientOpt;
 
     /**
      * Gets the current report manager configuration options
@@ -39,7 +40,7 @@ export class MdbClient {
      * @returns {IMdbClientOpt} The current report manager configuration
      * @throws {Error} When configuration is not initialized
      */
-    get options(): IMdbClientOpts {
+    get options(): IMdbClientOpt {
         return this._options!;
     }
 
@@ -50,7 +51,9 @@ export class MdbClient {
      */
     protected client: MongoClient | null = null;
 
-
+    isConnected(): boolean {
+        return this.client !== null;
+    }
     /**
      * Initializes the MongoDB client and encryption settings.
      * @private
@@ -58,18 +61,24 @@ export class MdbClient {
      * @returns {Promise<MongoClient>} Promise resolving the MongoDB client instance.
      * @throws {Error} If MongoDB connection or encryption setup fails.
      */
-    protected async connect(options?: IMdbClientOpts): Promise<MongoClient> {
+    public async connect(options?: IMdbClientOpt, source?: Record<string, string>): Promise<MongoClient> {
         if (this.client) {
             return this.client;
         }
-        const { mdb } = options || this.options;
+        const mdb = options || this.options || {} as IMdbClientOpt;
+        const database = mdb.database || source?.database || process.env["MDB_DBNAME"];
+        const collection = mdb.collection || source?.collection || process.env["MDB_COLLECTION"];
+
+        mdb.uri = mdb.uri || source?.uri || process.env[mdb.uri as string] || process.env["MDB_URI"];
+        mdb.database = process.env[database as string] || database;
+        mdb.collection = process.env[collection as string] || collection;
+
         if (!mdb?.uri) {
             throw new Error("The MongoDB URI is required to initialize the MongoDB Secrets Manager.");
         }
-        const uri = process.env[mdb.uri] as string;
         // Initialize MongoDB client if not done already
         if (!this.client) {
-            const opt = this.loadOptsFromEnv(mdb.options);
+            const opt = this.loadOpts(mdb.options, source);
             if (opt.authMechanism === 'MONGODB-AWS') {
                 // For AWS IAM, ensure we use the default credential provider chain
                 AWS.config.update({
@@ -79,10 +88,31 @@ export class MdbClient {
                     region: process.env.AWS_REGION || 'us-east-1'
                 });
             }
-            this.client = new MongoClient(uri, opt);
+            this.client = new MongoClient(mdb.uri, opt);
             await this.client.connect();
         }
+
+        this._options = mdb;
         return this.client;
+    }
+
+    db(database?: string): Db {
+        database = database || this.options.database;
+        if (!database) {
+            throw new Error("Database name must be specified in the request parameters or environment variables.");
+        }
+        if (!this.client) {
+            throw new Error("MongoDB client is not connected. Call connect() first.");
+        }
+        return this.client.db(database);
+    }
+
+    collection(collection?: string, database?: string): Collection {
+        collection = collection || this.options.collection;
+        if (!collection) {
+            throw new Error("Collection name must be specified in the request parameters or environment variables.");
+        }
+        return this.db(database).collection(collection);
     }
 
     /**
@@ -101,57 +131,33 @@ export class MdbClient {
      * Generates a MongoClientOptions object populated from environment variables
      * @returns {MongoClientOptions} The configuration options object.
      */
-    public loadOptsFromEnv(options?: MongoClientOptions): MongoClientOptions {
+    public loadOpts(options?: MongoClientOptions, source?: Record<string, string>): MongoClientOptions {
         options = options || {};
 
-        // Mapping of environment variables to MongoClientOptions properties
-        const envMapping: { [key: string]: string } = {
-            MDB_REPLICA_SET: "replicaSet",
-            MDB_TIMEOUT_MS: "timeoutMS",
-            MDB_TLS: "tls",
-            MDB_SSL: "ssl",
-            MDB_TLS_CERTIFICATE_KEY_FILE: "tlsCertificateKeyFile",
-            MDB_TLS_CERTIFICATE_KEY_FILE_PASSWORD: "tlsCertificateKeyFilePassword",
-            MDB_TLS_CA_FILE: "tlsCAFile",
-            MDB_TLS_CRL_FILE: "tlsCRLFile",
-            MDB_TLS_ALLOW_INVALID_CERTIFICATES: "tlsAllowInvalidCertificates",
-            MDB_TLS_ALLOW_INVALID_HOSTNAMES: "tlsAllowInvalidHostnames",
-            MDB_TLS_INSECURE: "tlsInsecure",
-            MDB_CONNECT_TIMEOUT_MS: "connectTimeoutMS",
-            MDB_SOCKET_TIMEOUT_MS: "socketTimeoutMS",
-            MDB_COMPRESSORS: "compressors",
-            MDB_ZLIB_COMPRESSION_LEVEL: "zlibCompressionLevel",
-            MDB_SRV_MAX_HOSTS: "srvMaxHosts",
-            MDB_SRV_SERVICE_NAME: "srvServiceName",
-            MDB_MAX_POOL_SIZE: "maxPoolSize",
-            MDB_MIN_POOL_SIZE: "minPoolSize",
-            MDB_MAX_CONNECTING: "maxConnecting",
-            MDB_MAX_IDLE_TIME_MS: "maxIdleTimeMS",
-            MDB_WAIT_QUEUE_TIMEOUT_MS: "waitQueueTimeoutMS",
-            MDB_READ_CONCERN_LEVEL: "readConcernLevel",
-            MDB_READ_PREFERENCE: "readPreference",
-            MDB_AUTH_MECHANISM: "authMechanism",
-            MDB_AUTH_SOURCE: "authSource",
-            MDB_USERNAME: "auth.username",
-            MDB_PASSWORD: "auth.password",
-            MDB_WRITE_CONCERN_W: "writeConcern.w",
-            MDB_WRITE_CONCERN_JOURNAL: "writeConcern.journal",
-            MDB_WRITE_CONCERN_WTIMEOUT_MS: "writeConcern.wtimeoutMS"
-        };
+        const mapL1: { [key: string]: string[] } = mdbOpt.l1;
+        const mapL2: { [key: string]: string[] } = mdbOpt.l2;
 
-        // Iterate over environment variables and map them to options
-        Object.entries(envMapping).forEach(([envKey, optionKey]) => {
+        const extract = ([key, vals]: any) => {
+            const envKey = vals[0];
+            const optKey = vals[1] || key;
             const envValue = process.env[envKey];
-            if (envValue !== undefined) {
-                // If the option is nested, assign child properties
-                if (optionKey.includes(".")) {
-                    const [parent, child] = optionKey.split(".");
-                    const parentKey = parent as keyof MongoClientOptions;
-                    options[parentKey] = options[parentKey] || {} as any;
-                    (options[parentKey] as any)[child] = this.castEnvValue(envValue);
-                } else {
-                    options[optionKey as keyof MongoClientOptions] = this.castEnvValue(envValue) as any;
-                }
+            const optValue = source ? source[optKey] : undefined;
+            const value = optValue || envValue;
+            return { key, value: value ? this.castValue(value) as any : undefined };
+        }
+
+        Object.entries(mapL1).forEach(([index, vals]) => {
+            const { key, value } = extract([index, vals]);
+            value && (options[key as keyof MongoClientOptions] = value);
+        });
+
+        Object.entries(mapL2).forEach(([index, vals]) => {
+            const { key, value } = extract([index, vals]);
+            if (value && key) {
+                const [parent, child] = key.split(".");
+                const parentKey = parent as keyof MongoClientOptions;
+                options[parentKey] = options[parentKey] || {} as any;
+                (options[parentKey] as any)[child] = value;
             }
         });
 
@@ -163,7 +169,7 @@ export class MdbClient {
      * @param value The environment variable value.
      * @returns The value cast to the appropriate type.
      */
-    private castEnvValue(value: string): Boolean | Number | string {
+    private castValue(value: string): Boolean | Number | string {
         if (value === 'true') return true;
         if (value === 'false') return false;
         if (!isNaN(Number(value))) return Number(value);
@@ -172,3 +178,5 @@ export class MdbClient {
 }
 
 export default MdbClient;
+
+export { MongoClient, Db, Collection } from "mongodb";

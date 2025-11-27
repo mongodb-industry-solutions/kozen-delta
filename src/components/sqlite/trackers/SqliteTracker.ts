@@ -1,11 +1,35 @@
-import { BaseTracker } from "./BaseTracker";
-import { IChange } from "@/models/Change";
-import { IRequest } from "@/models/Request";
-import { IResult } from "@/models/Result";
-import { ISource } from "@/models/Source";
+import { BaseTracker } from "../../../services/BaseTracker";
+import { IChange } from "../../../models/Change";
+import { IRequest } from "../../../models/Request";
+import { IResult } from "../../../models/Result";
+import { ISource } from "../../../models/Source";
 import { Database } from "sqlite3";
 
 export class SqliteTracker extends BaseTracker {
+    async last(request?: IRequest): Promise<IChange> {
+        if (!this.db) await this.configure(request || {});
+
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT * FROM ${this.TABLE_NAME} ORDER BY appliedAt DESC LIMIT 1`;
+
+            this.db.get(sql, (err: Error | null, row: any) => {
+                if (err) {
+                    reject(err);
+                } else if (!row) {
+                    reject(new Error("No changes found"));
+                } else {
+                    resolve({
+                        id: row.id,
+                        name: row.name,
+                        file: row.file,
+                        path: row.path,
+                        extension: row.extension,
+                        date: new Date(row.appliedAt)
+                    });
+                }
+            });
+        });
+    }
     private db!: Database;
     private readonly TABLE_NAME = "migrations";
 
@@ -111,9 +135,5 @@ export class SqliteTracker extends BaseTracker {
                 }
             });
         });
-    }
-
-    async status(request?: IRequest): Promise<IResult> {
-        return { success: !!this.db, message: this.db ? "Connected" : "Not connected" };
     }
 }

@@ -17,7 +17,7 @@ import { IRequest } from '@/models/Request';
 export class DeltaCLIController extends CLIController {
 
     /**
-     * Starts the trigger service based on provided options.
+     * Rolls back the last applied change using the delta service.
      * @param {ITriggerOptions} options - Trigger options for initialization
      * @throws {Error} When trigger service initialization fails
      * @public
@@ -38,6 +38,28 @@ export class DeltaCLIController extends CLIController {
         }
     }
 
+    /**
+     * Rolls back the trigger service based on provided options.
+     * @param {ITriggerOptions} options - Trigger options for initialization
+     * @throws {Error} When trigger service initialization fails
+     * @public
+     */
+    public async rollback(options: IRequest): Promise<{ await: boolean }> {
+        try {
+            const migration = await this.assistant?.get<IRunner>('delta:service');
+            options.flow = options.flow || this.getId(options as unknown as IConfig);
+            await migration?.rollback(options);
+            return { await: true };
+        } catch (error) {
+            this.logger?.error({
+                flow: this.getId(options as unknown as IConfig),
+                src: 'Delta:Controller:Rollback',
+                message: `❌ Failed to rollback change: ${(error as Error).message}`
+            });
+            return { await: false };
+        }
+    }
+
     /**`
      * Fills and validates CLI arguments for trigger operations.
      * @param {string[] | IArgs} args - Raw command line arguments array or pre-parsed arguments
@@ -52,7 +74,9 @@ export class DeltaCLIController extends CLIController {
             KOZEN_DELTA_TAG,
             KOZEN_DELTA_PATH,
             KOZEN_DELTA_EXTENSION,
+            KOZEN_DELTA_STAT,
             KOZEN_DELTA_FILTER_ID,
+            KOZEN_DELTA_FILTER_COUNT,
             KOZEN_DELTA_FILTER_NAME,
             KOZEN_DELTA_FILTER_FILE,
             KOZEN_DELTA_FILTER_DATE,
@@ -63,16 +87,21 @@ export class DeltaCLIController extends CLIController {
         let parsed: IRequest = { params };
 
         parsed.filter = parsed.filter || {};
+        (params.count || KOZEN_DELTA_FILTER_COUNT) && (parsed.filter.count = Number(params.count || KOZEN_DELTA_FILTER_COUNT));
         (params.filterId || KOZEN_DELTA_FILTER_ID) && (parsed.filter.id = params.filterId || KOZEN_DELTA_FILTER_ID);
         (params.filterName || KOZEN_DELTA_FILTER_NAME) && (parsed.filter.name = params.filterName || KOZEN_DELTA_FILTER_NAME);
         (params.filterFile || KOZEN_DELTA_FILTER_FILE) && (parsed.filter.file = params.filterFile || KOZEN_DELTA_FILTER_FILE);
         (params.filterDate || KOZEN_DELTA_FILTER_DATE) && (parsed.filter.date = new Date(params.filterDate || KOZEN_DELTA_FILTER_DATE as string));
         (params.filterType || KOZEN_DELTA_FILTER_TYPE) && (parsed.filter.type = params.filterType || KOZEN_DELTA_FILTER_TYPE);
-
-        parsed.extension = params.extension || KOZEN_DELTA_EXTENSION || 'js';
+        if (!Object.keys(parsed.filter).length) {
+            parsed.filter.count = 1;
+        }
+        
+        parsed.stat = params.stat || (KOZEN_DELTA_STAT === 'true');
         parsed.path = params.path || KOZEN_DELTA_PATH || process.cwd();
-        parsed.runner = params.runner || KOZEN_DELTA_RUNNER || 'mdb';
-        parsed.tracker = params.tracker || KOZEN_DELTA_TRACKER || KOZEN_DELTA_RUNNER;
+        parsed.extension = (params.extension || KOZEN_DELTA_EXTENSION || 'js').toLowerCase();
+        parsed.runner = (params.runner || KOZEN_DELTA_RUNNER || 'mdb').toLowerCase();
+        parsed.tracker = (params.tracker || KOZEN_DELTA_TRACKER || parsed.runner).toLowerCase();
 
         (params.prefix || KOZEN_DELTA_PREFIX) && (params.prefix = params.prefix || KOZEN_DELTA_PREFIX);
         (params.tag || KOZEN_DELTA_TAG) && (parsed.tag = params.tag || KOZEN_DELTA_TAG);

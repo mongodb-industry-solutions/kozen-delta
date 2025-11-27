@@ -1,9 +1,8 @@
-import { IChange } from "@/models/Change";
-import { IRequest } from "@/models/Request";
-import { IResult } from "@/models/Result";
-import { IRunner } from "@/models/Runner";
-import { ISource } from "@/models/Source";
-import { ITracker } from "@/models/Tracker";
+import { IRequest } from "../models/Request";
+import { IResult } from "../models/Result";
+import { IRunner } from "../models/Runner";
+import { ISource } from "../models/Source";
+import { ITracker } from "../models/Tracker";
 import { BaseService } from "@kozen/engine";
 
 export class MigrationService extends BaseService implements IRunner {
@@ -11,12 +10,17 @@ export class MigrationService extends BaseService implements IRunner {
     protected prefixRunner?: string = 'delta:runner';
     protected prefixTracker?: string = 'delta:tracker';
 
-    async getDrivers(req: IRequest): Promise<{ runner: IRunner; tracker: ITracker; }> {
-        const runnerKey = this.prefixRunner + (req.runner || 'mdb');
-        const trackerKey = this.prefixTracker + (req.tracker || 'mdb');
+    async getDrivers(req: IRequest): Promise<{ runner: IRunner | null; tracker: ITracker | null; }> {
+        const runnerKey = this.prefixRunner + ':' + (req.runner || 'mdb').toLowerCase();
+        const trackerKey = this.prefixTracker + ':' + (req.tracker || 'mdb').toLowerCase();
+
+        if (!this.assistant) {
+            throw new Error('Assistant is not initialized');
+        }
+
         const [tracker, runner] = await Promise.all([
-            this.getDelegate<ITracker>(trackerKey),
-            this.getDelegate<IRunner>(runnerKey)
+            this.assistant.get<ITracker>(trackerKey),
+            this.assistant.get<IRunner>(runnerKey)
         ]);
         return { runner, tracker };
     }
@@ -26,12 +30,12 @@ export class MigrationService extends BaseService implements IRunner {
             const results = [];
             const valid = [];
             const { runner, tracker } = await this.getDrivers(req);
-            const list = await tracker.list(req);
+            const list = await tracker?.available(req) || [];
             for (const chg of list) {
                 try {
-                    const result = await runner.commit(chg, req);
-                    if (!result.success) {
-                        throw new Error(result.message);
+                    const result = await runner?.commit(chg, req);
+                    if (!result?.success) {
+                        throw new Error(result?.message);
                     }
                     results.push(result.data);
                     valid.push(chg);
@@ -45,7 +49,7 @@ export class MigrationService extends BaseService implements IRunner {
                     break;
                 }
             }
-            await tracker.add(valid, req);
+            await tracker?.add(valid, req);
             return {
                 success: true,
                 message: 'Commit successful',
@@ -65,12 +69,12 @@ export class MigrationService extends BaseService implements IRunner {
             const results = [];
             const valid = [];
             const { runner, tracker } = await this.getDrivers(req);
-            const list = await tracker.list(req);
+            const list = await tracker?.list(req) || [];
             for (const chg of list) {
                 try {
-                    const result = await runner.rollback(chg, req);
-                    if (!result.success) {
-                        throw new Error(result.message);
+                    const result = await runner?.rollback(chg, req);
+                    if (!result?.success) {
+                        throw new Error(result?.message);
                     }
                     results.push(result.data);
                     valid.push(chg);
@@ -84,7 +88,7 @@ export class MigrationService extends BaseService implements IRunner {
                     break;
                 }
             }
-            await tracker.delete(valid, req);
+            await tracker?.delete(valid, req);
             return {
                 success: true,
                 message: 'Rollback successful',
@@ -102,6 +106,9 @@ export class MigrationService extends BaseService implements IRunner {
     async create(req: IRequest): Promise<IResult> {
         try {
             const { runner } = await this.getDrivers(req);
+            if (!runner) {
+                throw new Error('Runner not available');
+            }
             return await runner.create(req);
         } catch (error) {
             return {
@@ -115,6 +122,9 @@ export class MigrationService extends BaseService implements IRunner {
     async compare(req: IRequest): Promise<IResult> {
         try {
             const { runner } = await this.getDrivers(req);
+            if (!runner) {
+                throw new Error('Runner not available');
+            }
             return await runner.compare(req);
         } catch (error) {
             return {
@@ -128,6 +138,9 @@ export class MigrationService extends BaseService implements IRunner {
     async status(req: IRequest): Promise<IResult> {
         try {
             const { tracker } = await this.getDrivers(req);
+            if (!tracker) {
+                throw new Error('Tracker not available');
+            }
             return await tracker.status(req);
         } catch (error) {
             return {
@@ -141,6 +154,9 @@ export class MigrationService extends BaseService implements IRunner {
     async check(req: IRequest): Promise<IResult> {
         try {
             const { runner } = await this.getDrivers(req);
+            if (!runner) {
+                throw new Error('Runner not available');
+            }
             return await runner.check(req);
         } catch (error) {
             return {
