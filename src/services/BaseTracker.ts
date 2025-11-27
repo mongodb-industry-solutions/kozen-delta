@@ -1,34 +1,34 @@
-import { IChange } from "@/models/Change";
-import { IRequest } from "@/models/Request";
-import { IResult } from "@/models/Result";
-import { ISource } from "@/models/Source";
-import { ITracker } from "@/models/Tracker";
+import { Stats } from "fs";
+import { IChange } from "../models/Change";
+import { IRequest } from "../models/Request";
+import { IResult } from "../models/Result";
+import { ISource } from "../models/Source";
+import { ITracker } from "../models/Tracker";
 import { readdir, stat } from "fs/promises";
 import { join, parse } from "path";
 
 export abstract class BaseTracker implements ITracker {
     abstract configure(request: IRequest): Promise<ISource>;
-
     abstract add(changes: Array<IChange>, request?: IRequest): Promise<IResult>;
     abstract delete(changes: Array<IChange>, request?: IRequest): Promise<IResult>;
     abstract list(request?: IRequest): Promise<Array<IChange>>;
+    protected abstract last(request?: IRequest): Promise<IChange>;
 
-    protected async scan(path: string): Promise<Array<IChange>> {
+    protected async scan(path: string, request?: IRequest): Promise<Array<IChange>> {
         const changes: Array<IChange> = [];
         try {
             const files = await readdir(path);
             for (const file of files) {
+                const isValidExtension = request?.extension && file.endsWith(`.${request.extension}`) || !request?.extension;
                 const filePath = join(path, file);
-                const fileStat = await stat(filePath);
-                if (fileStat.isFile()) {
+                const fileStat = request?.stat ? await stat(filePath) : { isFile: () => true } as Stats;
+                if (fileStat.isFile() && isValidExtension) {
                     const parsed = parse(file);
-                    // Basic validation of the filename format could go here if needed
-                    // But for now we just list them all and let available/status filter
                     changes.push({
                         id: parsed.name,
                         name: parsed.name,
-                        file: file,
-                        path: filePath,
+                        file: filePath,
+                        path: parsed.dir,
                         extension: parsed.ext.replace('.', ''),
                         date: fileStat.mtime
                     });
@@ -44,20 +44,9 @@ export abstract class BaseTracker implements ITracker {
 
     async available(request: IRequest): Promise<Array<IChange>> {
         const path = request.path || process.cwd();
-        const allFiles = await this.scan(path);
-        const appliedChanges = await this.list(request);
-
-        // If no changes applied, all are available
-        if (appliedChanges.length === 0) {
-            return allFiles;
-        }
-
-        // Sort applied changes by ID (timestamp) just in case
-        appliedChanges.sort((a, b) => (a.id || "").localeCompare(b.id || ""));
-        const lastApplied = appliedChanges[appliedChanges.length - 1];
-
-        // Filter files that are lexicographically greater than the last applied ID
-        return allFiles.filter(change => (change.id || "") > (lastApplied.id || ""));
+        const allFiles = await this.scan(path, request);
+        const lastApplied = await this.last(request);
+        return lastApplied ? allFiles.filter(change => change && (change.id || "") > (lastApplied.id || "")) : allFiles;
     }
 
     async status(request?: IRequest): Promise<IResult> {

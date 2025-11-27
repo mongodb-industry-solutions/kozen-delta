@@ -1,3 +1,5 @@
+export type IChangeType = 'module' | 'script' | 'data' | 'schema' | 'other';
+
 export interface IChange {
     id?: string;
     tag?: string;
@@ -5,6 +7,7 @@ export interface IChange {
     name?: string;
     file?: string;
     owner?: string;
+    type?: IChangeType;
     date?: Date | string;
     extension?: string;
     content?: string;

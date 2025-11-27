@@ -1,7 +1,7 @@
-import { BinRunner } from "./BinRunner";
-import { IRequest } from "@/models/Request";
-import { ISource } from "@/models/Source";
-import { IResult } from "@/models/Result";
+import { BinRunner } from "../../bin/runners/BinRunner";
+import { IRequest } from "../../../models/Request";
+import { ISource } from "../../../models/Source";
+import { IResult } from "../../../models/Result";
 import { writeFile, readFile } from "fs/promises";
 import { join } from "path";
 

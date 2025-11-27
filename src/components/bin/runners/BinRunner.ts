@@ -1,8 +1,8 @@
-import { IChange } from "@/models/Change";
-import { IRequest } from "@/models/Request";
-import { IResult } from "@/models/Result";
-import { IRunner } from "@/models/Runner";
-import { ISource } from "@/models/Source";
+import { IChange } from "../../../models/Change";
+import { IRequest } from "../../../models/Request";
+import { IResult } from "../../../models/Result";
+import { IRunner } from "../../../models/Runner";
+import { ISource } from "../../../models/Source";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { existsSync } from "fs";

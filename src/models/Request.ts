@@ -1,3 +1,4 @@
+import { info } from "console";
 import { IFilter } from "./Filter";
 
 /**
@@ -14,4 +15,5 @@ export interface IRequest {
     tracker?: string;
     filter?: IFilter;
     params?: any;
+    stat?: boolean;
 }

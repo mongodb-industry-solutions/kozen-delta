@@ -16,8 +16,8 @@
                 "type": "ref"
             },
             {
-                "key": "srvTrigger",
-                "target": "trigger:service",
+                "key": "srvDelta",
+                "target": "delta:service",
                 "type": "ref"
             },
             {

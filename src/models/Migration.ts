@@ -2,7 +2,7 @@
 import { IResult } from "./Result";
 import { ITool } from "./Tool";
 
-export interface IMigration {
-    commit(tools?: ITool): Promise<IResult | void>;
-    rollback(tools?: ITool): Promise<IResult | void>;
+export interface IMigration<T = ITool, H = IResult> {
+    commit(tools?: T): Promise<H | void>;
+    rollback(tools?: T): Promise<H | void>;
 }

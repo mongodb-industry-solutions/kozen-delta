@@ -1,6 +1,9 @@
 import { IConfig, IDependency, KzModule } from "@kozen/engine";
 import cli from "./configs/cli.json";
 import ioc from "./configs/ioc.json";
+import drvBin from "./components/bin/configs/ioc.json";
+import drvMdb from "./components/mdb/configs/ioc.json";
+import drvSqlite from "./components/sqlite/configs/ioc.json";
 import fs from 'fs';
 import path from 'path';
 
@@ -30,10 +33,10 @@ export class DeltaModule extends KzModule {
         let dep: Record<string, any> = {};
         switch (config?.type) {
             case 'cli':
-                dep = { ...ioc, ...cli };
+                dep = { ...ioc, ...drvMdb, ...drvSqlite, ...drvBin, ...cli };
                 break;
             default:
-                dep = ioc;
+                dep = { ...ioc, ...drvMdb, ...drvSqlite, ...drvBin };
                 break;
         }
         dep = this.fix(dep);

@@ -1,18 +1,17 @@
-import { IChange } from "@/models/Change";
-import { IRequest } from "@/models/Request";
-import { IResult } from "@/models/Result";
-import { IRunner } from "@/models/Runner";
-import { ISource } from "@/models/Source";
-import { MongoClient, Db } from "mongodb";
+
 import { writeFile, readFile } from "fs/promises";
 import { join } from "path";
+import { IChange } from "../../../models/Change";
+import { IRequest } from "../../../models/Request";
+import { IResult } from "../../../models/Result";
+import { ISource } from "../../../models/Source";
+import { MdbClient } from "../vendors/MdbClient";
+import { BaseRunner } from "../../../services/BaseRunner";
+import { IModuleType } from "@kozen/engine";
 
-export class MdbRunner implements IRunner {
-    public assistant: any; // IIoC type not available in context, using any
-    public logger: any;
+export class MdbRunner extends BaseRunner {
 
-    private client!: MongoClient;
-    private db!: Db;
+    private client!: MdbClient;
 
     async create(request?: IRequest): Promise<IResult> {
         const req = request || {} as IRequest;
@@ -47,34 +46,28 @@ export class MdbRunner implements IRunner {
     }
 
     async configure(request: IRequest): Promise<ISource> {
-        const uri = request.params?.uri || process.env.MONGO_URI || "mongodb://localhost:27017";
-        const dbName = request.params?.dbName || process.env.MONGO_DB_NAME || "test";
-
-        this.client = new MongoClient(uri);
-        await this.client.connect();
-        this.db = this.client.db(dbName);
-
-        return {
-            config: {
-                client: this.client,
-                db: this.db
-            }
-        };
+        if (this.client?.isConnected()) {
+            return {};
+        }
+        this.client = this.client || new MdbClient();
+        await this.client.connect({}, request.params);
+        return {};
     }
 
     async commit(change: IChange, request?: IRequest): Promise<IResult> {
-        if (!this.db) await this.configure(request || {});
-        if (!change.path) return { success: false, message: "Change path is missing" };
+        if (!this.client?.isConnected()) await this.configure(request || {});
 
         try {
-            const migration = await import(change.path);
-            const migrationObj = migration.default || migration;
-
-            if (migrationObj.commit) {
-                await migrationObj.commit({ db: this.db, assistant: this.assistant });
-                return { success: true, message: "Migration committed" };
+            if (change.type !== 'module') {
+                return { success: false, message: "Only 'module' type changes are supported for commit." };
             } else {
-                return { success: false, message: "Commit method not found in migration file" };
+                const result = await this.runModule({
+                    file: change.file || "",
+                    key: (process.env.KOZEN_DELTA_KEY || 'delta:migration:') + (change.id || ''),
+                    type: 'instance',
+                    moduleType: process.env.KOZEN_DELTA_MIGRATION_TYPE as IModuleType
+                }, 'commit', [{ db: this.client.db(), collection: this.client.collection(), assistant: this.assistant }]);
+                return { success: true, message: "Migration committed", data: result };
             }
         } catch (error: any) {
             return { success: false, message: error.message };
@@ -82,7 +75,7 @@ export class MdbRunner implements IRunner {
     }
 
     async rollback(change: IChange, request?: IRequest): Promise<IResult> {
-        if (!this.db) await this.configure(request || {});
+        if (!this.client?.isConnected()) await this.configure(request || {});
         if (!change.path) return { success: false, message: "Change path is missing" };
 
         try {
@@ -90,7 +83,11 @@ export class MdbRunner implements IRunner {
             const migrationObj = migration.default || migration;
 
             if (migrationObj.rollback) {
-                await migrationObj.rollback({ db: this.db, assistant: this.assistant });
+                await migrationObj.rollback({
+                    db: this.client.db(),
+                    collection: this.client.collection(),
+                    assistant: this.assistant
+                });
                 return { success: true, message: "Migration rolled back" };
             } else {
                 return { success: false, message: "Rollback method not found in migration file" };
