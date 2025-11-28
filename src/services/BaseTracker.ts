@@ -25,7 +25,6 @@ export abstract class BaseTracker implements ITracker {
                 if (fileStat.isFile() && isValidExtension) {
                     const parsed = parse(file);
                     changes.push({
-                        id: parsed.name,
                         name: parsed.name,
                         file: filePath,
                         path: parsed.dir,

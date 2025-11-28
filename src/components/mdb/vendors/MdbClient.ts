@@ -115,6 +115,13 @@ export class MdbClient {
         return this.db(database).collection(collection);
     }
 
+    transaction() {
+        if (!this.client) {
+            throw new Error("MongoDB client is not connected. Call connect() first.");
+        }
+        return this.client.startSession();
+    }
+
     /**
      * Closes the active MongoDB connection and resets encryption context.
      * @public
