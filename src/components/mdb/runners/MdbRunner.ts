@@ -7,13 +7,14 @@ import { IResult } from "../../../models/Result";
 import { ISource } from "../../../models/Source";
 import { MdbClient } from "../vendors/MdbClient";
 import { BaseRunner } from "../../../services/BaseRunner";
-import { IModuleType } from "@kozen/engine";
+import { IDependency, IModuleType } from "@kozen/engine";
+import { IMigration } from "@/models/Migration";
 
 export class MdbRunner extends BaseRunner {
 
     private client!: MdbClient;
 
-    async create(request?: IRequest): Promise<IResult> {
+    public async create(request?: IRequest): Promise<IResult> {
         const req = request || {} as IRequest;
         const name = req.params?.name || "migration";
         const env = req.params?.env || "dev";
@@ -45,7 +46,7 @@ export class MdbRunner extends BaseRunner {
         }
     }
 
-    async configure(request: IRequest): Promise<ISource> {
+    public async configure(request: IRequest): Promise<ISource> {
         if (this.client?.isConnected()) {
             return {};
         }
@@ -54,54 +55,86 @@ export class MdbRunner extends BaseRunner {
         return {};
     }
 
-    async commit(change: IChange, request?: IRequest): Promise<IResult> {
+    public async commit(change: IChange, request?: IRequest): Promise<IResult> {
         if (!this.client?.isConnected()) await this.configure(request || {});
-
-        try {
-            if (change.type !== 'module') {
-                return { success: false, message: "Only 'module' type changes are supported for commit." };
-            } else {
-                const result = await this.runModule({
+        if (change.type !== 'module') {
+            return { success: false, message: "Only 'module' type changes are supported for commit." };
+        } else {
+            try {
+                const dep: IDependency = {
+                    key: (process.env.KOZEN_DELTA_KEY || 'delta:migration:') + (change.name || ''),
                     file: change.file || "",
-                    key: (process.env.KOZEN_DELTA_KEY || 'delta:migration:') + (change.id || ''),
                     type: 'instance',
                     moduleType: process.env.KOZEN_DELTA_MIGRATION_TYPE as IModuleType
-                }, 'commit', [{ db: this.client.db(), collection: this.client.collection(), assistant: this.assistant }]);
-                return { success: true, message: "Migration committed", data: result };
+                };
+                const data = await this.runModule(dep, 'commit');
+                return { success: true, message: "Migration committed", data };
+            } catch (error: any) {
+                return { success: false, message: error.message };
             }
-        } catch (error: any) {
-            return { success: false, message: error.message };
         }
     }
 
-    async rollback(change: IChange, request?: IRequest): Promise<IResult> {
+    public async rollback(change: IChange, request?: IRequest): Promise<IResult> {
         if (!this.client?.isConnected()) await this.configure(request || {});
-        if (!change.path) return { success: false, message: "Change path is missing" };
+        if (change.type !== 'module') {
+            return { success: false, message: "Only 'module' type changes are supported for rollback." };
+        } else {
+            try {
+                const dep: IDependency = {
+                    key: (process.env.KOZEN_DELTA_KEY || 'delta:migration:') + (change.name || ''),
+                    file: change.file || "",
+                    type: 'instance',
+                    moduleType: process.env.KOZEN_DELTA_MIGRATION_TYPE as IModuleType
+                };
+                const data = await this.runModule(dep, 'rollback');
+                return { success: true, message: "Migration rolled back", data };
+            } catch (error: any) {
+                return { success: false, message: error.message };
+            }
+        }
+    }
 
+    public async compare(request?: IRequest): Promise<IResult> {
+        throw new Error("Method not implemented.");
+    }
+
+    public async check(request?: IRequest): Promise<IResult> {
+        throw new Error("Method not implemented.");
+    }
+
+    protected async runModule<T = IMigration, H = void>(options: IDependency, action: string): Promise<H> {
+        // protected async commitModule(change: IChange, request?: IRequest): Promise<IResult> {
+        let result = null;
+        let error = null;
+        const session = this.client.transaction();
         try {
-            const migration = await import(change.path);
-            const migrationObj = migration.default || migration;
-
-            if (migrationObj.rollback) {
-                await migrationObj.rollback({
+            // Start the transaction within the session
+            session.startTransaction();
+            // Execute the migration module's commit method
+            const data = await super.runModule(
+                options,
+                action,
+                [{
                     db: this.client.db(),
                     collection: this.client.collection(),
-                    assistant: this.assistant
-                });
-                return { success: true, message: "Migration rolled back" };
-            } else {
-                return { success: false, message: "Rollback method not found in migration file" };
+                    assistant: this.assistant,
+                    session
+                }]
+            );
+            result = { success: true, message: "Migration committed", data };
+            // Commit the transaction
+            await session.commitTransaction();
+        } catch (err) {
+            // Roll back changes
+            await session.abortTransaction();
+            error = err;
+        } finally {
+            session.endSession();
+            if (error) {
+                throw error;
             }
-        } catch (error: any) {
-            return { success: false, message: error.message };
+            return result as unknown as H;
         }
-    }
-
-    async compare(request?: IRequest): Promise<IResult> {
-        throw new Error("Method not implemented.");
-    }
-
-    async check(request?: IRequest): Promise<IResult> {
-        throw new Error("Method not implemented.");
     }
 }

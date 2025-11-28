@@ -5,6 +5,7 @@ import { IResult } from "../models/Result";
 import { IRunner } from "../models/Runner";
 import { ISource } from "../models/Source";
 import { IDependency, IIoC, ILogger } from "@kozen/engine";
+import { promises as fs } from 'node:fs';
 
 export abstract class BaseRunner implements IRunner {
 
@@ -30,6 +31,22 @@ export abstract class BaseRunner implements IRunner {
             return await method.apply(module, params) as H;
         } else {
             throw new Error(`Method ${action} not found on migration module`);
+        }
+    }
+
+    /**
+     * Reads the content of a file asynchronously.
+     * @param filePath - The path of the file to read.
+     * @returns A promise that resolves to the file content as a string.
+     */
+    protected async getFileContent(filePath: string, format: BufferEncoding = 'utf-8', avoid: boolean = true): Promise<string> {
+        try {
+            return await fs.readFile(filePath, format);
+        } catch (error) {
+            if (avoid) {
+                return '';
+            }
+            throw error;
         }
     }
 }
