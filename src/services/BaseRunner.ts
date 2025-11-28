@@ -4,7 +4,7 @@ import { IRequest } from "../models/Request";
 import { IResult } from "../models/Result";
 import { IRunner } from "../models/Runner";
 import { ISource } from "../models/Source";
-import { IDependency, IIoC, ILogger } from "@kozen/engine";
+import { IDependency, IIoC, ILogger, IModuleType } from "@kozen/engine";
 import { promises as fs } from 'node:fs';
 
 export abstract class BaseRunner implements IRunner {
@@ -24,6 +24,13 @@ export abstract class BaseRunner implements IRunner {
     abstract check(change: IChange, request?: IRequest): Promise<IResult>;
     abstract create(request?: IRequest): Promise<IResult>;
 
+    /**
+     * Runs a migration module's specified action.
+     * @param {IDependency} options - The dependency options to retrieve the migration module.
+     * @param {string} action - The action method name to invoke on the migration module.
+     * @param {any[]} params - Parameters to pass to the migration module's action.
+     * @returns {Promise<H>} The result of the migration module's action.
+     */
     protected async runModule<T = IMigration, H = void>(options: IDependency, action: string, params: any[] = []): Promise<H> {
         const module = await this.assistant.get<T>(options);
         const method = (module as any)[action];
@@ -31,6 +38,20 @@ export abstract class BaseRunner implements IRunner {
             return await method.apply(module, params) as H;
         } else {
             throw new Error(`Method ${action} not found on migration module`);
+        }
+    }
+
+    /**
+     * Converts a change object to a dependency object.
+     * @param {IChange} change - The change object to convert.
+     * @returns {IDependency} The corresponding dependency object.
+     */
+    protected fromChange(change: IChange): IDependency {
+        return {
+            key: (process.env.KOZEN_DELTA_KEY || 'delta:migration:') + (change.name || ''),
+            file: change.file || "",
+            type: 'instance',
+            moduleType: process.env.KOZEN_DELTA_MIGRATION_TYPE as IModuleType
         }
     }
 

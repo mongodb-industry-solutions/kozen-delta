@@ -7,7 +7,7 @@ import { IResult } from "../../../models/Result";
 import { ISource } from "../../../models/Source";
 import { MdbClient } from "../vendors/MdbClient";
 import { BaseRunner } from "../../../services/BaseRunner";
-import { IDependency, IModuleType } from "@kozen/engine";
+import { IDependency } from "@kozen/engine";
 import { IMigration } from "@/models/Migration";
 
 export class MdbRunner extends BaseRunner {
@@ -61,12 +61,7 @@ export class MdbRunner extends BaseRunner {
             return { success: false, message: "Only 'module' type changes are supported for commit." };
         } else {
             try {
-                const dep: IDependency = {
-                    key: (process.env.KOZEN_DELTA_KEY || 'delta:migration:') + (change.name || ''),
-                    file: change.file || "",
-                    type: 'instance',
-                    moduleType: process.env.KOZEN_DELTA_MIGRATION_TYPE as IModuleType
-                };
+                const dep: IDependency = this.fromChange(change);
                 const data = await this.runModule(dep, 'commit');
                 return { success: true, message: "Migration committed", data };
             } catch (error: any) {
@@ -81,12 +76,7 @@ export class MdbRunner extends BaseRunner {
             return { success: false, message: "Only 'module' type changes are supported for rollback." };
         } else {
             try {
-                const dep: IDependency = {
-                    key: (process.env.KOZEN_DELTA_KEY || 'delta:migration:') + (change.name || ''),
-                    file: change.file || "",
-                    type: 'instance',
-                    moduleType: process.env.KOZEN_DELTA_MIGRATION_TYPE as IModuleType
-                };
+                const dep: IDependency = this.fromChange(change);
                 const data = await this.runModule(dep, 'rollback');
                 return { success: true, message: "Migration rolled back", data };
             } catch (error: any) {
