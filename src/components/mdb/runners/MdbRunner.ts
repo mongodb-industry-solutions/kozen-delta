@@ -55,36 +55,6 @@ export class MdbRunner extends BaseRunner {
         return {};
     }
 
-    public async commit(change: IChange, request?: IRequest): Promise<IResult> {
-        if (!this.client?.isConnected()) await this.configure(request || {});
-        if (change.type !== 'module') {
-            return { success: false, message: "Only 'module' type changes are supported for commit." };
-        } else {
-            try {
-                const dep: IDependency = this.fromChange(change);
-                const data = await this.runModule(dep, 'commit');
-                return { success: true, message: "Migration committed", data };
-            } catch (error: any) {
-                return { success: false, message: error.message };
-            }
-        }
-    }
-
-    public async rollback(change: IChange, request?: IRequest): Promise<IResult> {
-        if (!this.client?.isConnected()) await this.configure(request || {});
-        if (change.type !== 'module') {
-            return { success: false, message: "Only 'module' type changes are supported for rollback." };
-        } else {
-            try {
-                const dep: IDependency = this.fromChange(change);
-                const data = await this.runModule(dep, 'rollback');
-                return { success: true, message: "Migration rolled back", data };
-            } catch (error: any) {
-                return { success: false, message: error.message };
-            }
-        }
-    }
-
     public async compare(request?: IRequest): Promise<IResult> {
         throw new Error("Method not implemented.");
     }
@@ -93,8 +63,7 @@ export class MdbRunner extends BaseRunner {
         throw new Error("Method not implemented.");
     }
 
-    protected async runModule<T = IMigration, H = void>(options: IDependency, action: string): Promise<H> {
-        // protected async commitModule(change: IChange, request?: IRequest): Promise<IResult> {
+    protected async runModule<T = IMigration>(options: IChange, action: string): Promise<IChange> {
         let result = null;
         let error = null;
         const session = this.client.transaction();
@@ -112,7 +81,7 @@ export class MdbRunner extends BaseRunner {
                     session
                 }]
             );
-            result = { success: true, message: "Migration committed", data };
+            result = data;
             // Commit the transaction
             await session.commitTransaction();
         } catch (err) {
@@ -124,7 +93,7 @@ export class MdbRunner extends BaseRunner {
             if (error) {
                 throw error;
             }
-            return result as unknown as H;
+            return result as IChange;
         }
     }
 }

@@ -17,13 +17,39 @@ export abstract class BaseRunner implements IRunner {
         this.logger = logger;
     }
 
-    abstract commit(change: IChange, request?: IRequest): Promise<IResult>;
-    abstract rollback(change: IChange, request?: IRequest): Promise<IResult>;
     abstract configure(request: IRequest): Promise<ISource>;
     abstract compare(request?: IRequest): Promise<IResult>;
     abstract check(change: IChange, request?: IRequest): Promise<IResult>;
     abstract create(request?: IRequest): Promise<IResult>;
 
+
+    public async commit(change: IChange, request?: IRequest): Promise<IResult> {
+        await this.configure(request || {});
+        if (change.type !== 'module') {
+            return { success: false, message: "Only 'module' type changes are supported for commit." };
+        } else {
+            try {
+                const data = await this.runModule(change, 'commit');
+                return { success: true, message: "Migration committed", data };
+            } catch (error: any) {
+                return { success: false, message: error.message };
+            }
+        }
+    }
+
+    public async rollback(change: IChange, request?: IRequest): Promise<IResult> {
+        await this.configure(request || {});
+        if (change.type !== 'module') {
+            return { success: false, message: "Only 'module' type changes are supported for rollback." };
+        } else {
+            try {
+                const data = await this.runModule(change, 'rollback');
+                return { success: true, message: "Migration rolled back", data };
+            } catch (error: any) {
+                return { success: false, message: error.message };
+            }
+        }
+    }
     /**
      * Runs a migration module's specified action.
      * @param {IDependency} options - The dependency options to retrieve the migration module.
@@ -31,11 +57,15 @@ export abstract class BaseRunner implements IRunner {
      * @param {any[]} params - Parameters to pass to the migration module's action.
      * @returns {Promise<H>} The result of the migration module's action.
      */
-    protected async runModule<T = IMigration, H = void>(options: IDependency, action: string, params: any[] = []): Promise<H> {
-        const module = await this.assistant.get<T>(options);
+    protected async runModule<T = IMigration>(options: IChange, action: string, params: any[] = []): Promise<IChange> {
+        const dep: IDependency = this.fromChange(options);
+        const module = await this.assistant.get<T>(dep) as IMigration;
         const method = (module as any)[action];
         if (typeof method === 'function') {
-            return await method.apply(module, params) as H;
+            const data = await method.apply(module, params) as IResult;
+            options.description = data.message || module.description;
+            options.tags = [...(options.tags || []), ...(module.tags || [])];
+            return options;
         } else {
             throw new Error(`Method ${action} not found on migration module`);
         }
