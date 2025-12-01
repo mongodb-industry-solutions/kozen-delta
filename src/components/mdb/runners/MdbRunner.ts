@@ -7,7 +7,6 @@ import { IResult } from "../../../models/Result";
 import { ISource } from "../../../models/Source";
 import { MdbClient } from "../vendors/MdbClient";
 import { BaseRunner } from "../../../services/BaseRunner";
-import { IDependency } from "@kozen/engine";
 import { IMigration } from "@/models/Migration";
 
 export class MdbRunner extends BaseRunner {

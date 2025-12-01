@@ -26,7 +26,7 @@ export class DeltaCLIController extends CLIController {
         try {
             const migration = await this.assistant?.get<IRunner>('delta:service');
             options.flow = options.flow || this.getId(options as unknown as IConfig);
-            await migration?.commit(options);
+            const rs = await migration?.commit(options);
             return { await: true };
         } catch (error) {
             this.logger?.error({

@@ -5,7 +5,8 @@ import { IResult } from "../models/Result";
 import { ISource } from "../models/Source";
 import { ITracker } from "../models/Tracker";
 import { readdir, stat } from "fs/promises";
-import { join, parse } from "path";
+import { join, parse, dirname } from "path";
+import { strToDate } from "@kozen/engine";
 
 export abstract class BaseTracker implements ITracker {
     abstract configure(request: IRequest): Promise<ISource>;
@@ -13,6 +14,15 @@ export abstract class BaseTracker implements ITracker {
     abstract delete(changes: Array<IChange>, request?: IRequest): Promise<IResult>;
     abstract list(request?: IRequest): Promise<Array<IChange>>;
     protected abstract last(request?: IRequest): Promise<IChange>;
+
+    protected meta(target: string) {
+        let parts = target.split('.');
+        let created = strToDate(parts[0]);
+        return {
+            name: (!!created ? parts[1] : parts[0]) || '',
+            created: created,
+        }
+    }
 
     protected async scan(path: string, request?: IRequest): Promise<Array<IChange>> {
         const changes: Array<IChange> = [];
@@ -24,17 +34,18 @@ export abstract class BaseTracker implements ITracker {
                 const fileStat = request?.stat ? await stat(filePath) : { isFile: () => true } as Stats;
                 if (fileStat.isFile() && isValidExtension) {
                     const parsed = parse(file);
+                    const meta = this.meta(parsed.name);
                     changes.push({
-                        name: parsed.name,
+                        name: meta.name,
                         file: filePath,
-                        path: parsed.dir,
+                        path: dirname(filePath),
                         extension: parsed.ext.replace('.', ''),
-                        date: fileStat.mtime
+                        created: meta.created || undefined
                     });
                 }
             }
             // Sort by name (which includes timestamp) to ensure sequential order
-            changes.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+            // changes.sort((a, b) => (a.created || "").localeCompare(b.created || ""));
         } catch (error) {
             console.error(`Error reading directory ${path}:`, error);
         }
@@ -45,7 +56,8 @@ export abstract class BaseTracker implements ITracker {
         const path = request.path || process.cwd();
         const allFiles = await this.scan(path, request);
         const lastApplied = await this.last(request);
-        return lastApplied ? allFiles.filter(change => change && (change.id || "") > (lastApplied.id || "")) : allFiles;
+        const result = lastApplied ? allFiles.filter(change => change && (change.created || "") > (lastApplied.created || "")) : allFiles;
+        return result;
     }
 
     async status(request?: IRequest): Promise<IResult> {
