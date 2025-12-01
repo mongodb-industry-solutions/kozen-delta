@@ -5,11 +5,12 @@
  * @version 1.0.6
  */
 
-import { Collection, Db, MongoClient, MongoClientOptions } from "mongodb";
+import { Collection, MongoClient, MongoClientOptions } from "mongodb";
 import { ILogger, IIoC } from "@kozen/engine";
 import { IMdbClientOpt } from "./MdbClientOpt";
 import AWS from 'aws-sdk';
 import mdbOpt from '../configs/mdb.json';
+import { Idb } from "./MdbTypes";
 
 /**
  * @class ReportManagerMDB
@@ -42,6 +43,10 @@ export class MdbClient {
      */
     get options(): IMdbClientOpt {
         return this._options!;
+    }
+
+    get driver(): MongoClient | null {
+        return this.client;
     }
 
     /**
@@ -96,7 +101,7 @@ export class MdbClient {
         return this.client;
     }
 
-    db(database?: string): Db {
+    db(database?: string): Idb {
         database = database || this.options.database;
         if (!database) {
             throw new Error("Database name must be specified in the request parameters or environment variables.");
@@ -104,7 +109,11 @@ export class MdbClient {
         if (!this.client) {
             throw new Error("MongoDB client is not connected. Call connect() first.");
         }
-        return this.client.db(database);
+        const db: Idb = this.client.db(database) as Idb;
+        if (db.runCommand === undefined) {
+            db.runCommand = db.command.bind(db);
+        }
+        return db;
     }
 
     collection(collection?: string, database?: string): Collection {
