@@ -24,7 +24,7 @@ export class SqliteTracker extends BaseTracker {
                         file: row.file,
                         path: row.path,
                         extension: row.extension,
-                        date: new Date(row.appliedAt)
+                        created: new Date(row.created)
                     });
                 }
             });
