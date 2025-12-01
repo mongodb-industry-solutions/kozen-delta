@@ -44,6 +44,8 @@ export class DeltaModule extends KzModule {
     }
 }
 
+export default DeltaModule;
+
 export * from "./components/mdb";
 export * from "./components/bin";
 export * from "./components/sqlite";
