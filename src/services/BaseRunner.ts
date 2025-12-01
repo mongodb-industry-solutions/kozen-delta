@@ -25,7 +25,7 @@ export abstract class BaseRunner implements IRunner {
 
     public async commit(change: IChange, request?: IRequest): Promise<IResult> {
         await this.configure(request || {});
-        if (change.type !== 'module') {
+        if (change.type !== undefined && change.type !== 'module') {
             return { success: false, message: "Only 'module' type changes are supported for commit." };
         } else {
             try {
@@ -60,14 +60,39 @@ export abstract class BaseRunner implements IRunner {
     protected async runModule<T = IMigration>(options: IChange, action: string, params: any[] = []): Promise<IChange> {
         const dep: IDependency = this.fromChange(options);
         const module = await this.assistant.get<T>(dep) as IMigration;
+        if (!module) {
+            throw new Error(`Migration module not found for change: ${options.name}: ${dep.file}`);
+        }
         const method = (module as any)[action];
         if (typeof method === 'function') {
             const data = await method.apply(module, params) as IResult;
-            options.description = data.message || module.description;
+            options.description = data?.message || module.description;
             options.tags = [...(options.tags || []), ...(module.tags || [])];
             return options;
         } else {
             throw new Error(`Method ${action} not found on migration module`);
+        }
+    }
+
+    /**
+     * Reads the content of a file asynchronously.
+     * @param {IChange} change - The change object containing the file path.
+     * @param {Object} options - Options for reading the file.
+     * @param {BufferEncoding} [options.format='utf-8'] - The encoding format to use when reading the file.
+     * @param {boolean} [options.avoid=true] - Whether to avoid throwing an error if the file cannot be read.
+     * @returns The content of the file as a string, or an empty string if avoid is true and an error occurs.
+     */
+    async getContent(change: IChange, { format = 'utf-8', avoid = true }: { format?: BufferEncoding; avoid?: boolean } = {}): Promise<string> {
+        try {
+            if (!change.file) {
+                throw new Error("No file specified in change options");
+            }
+            return await fs.readFile(change.file, format);
+        } catch (error) {
+            if (avoid) {
+                return '';
+            }
+            throw error;
         }
     }
 
@@ -81,7 +106,8 @@ export abstract class BaseRunner implements IRunner {
             key: (process.env.KOZEN_DELTA_KEY || 'delta:migration:') + (change.name || ''),
             file: change.file || "",
             type: 'instance',
-            moduleType: process.env.KOZEN_DELTA_MIGRATION_TYPE as IModuleType
+            raw: false,
+            moduleType: (process.env.KOZEN_DELTA_MIGRATION_TYPE as IModuleType) || (change.type === undefined || change.type === 'module' ? 'module' : 'commonjs' as IModuleType)
         }
     }
 

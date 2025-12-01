@@ -38,13 +38,15 @@ export class MigrationService extends BaseService implements IRunner {
                         throw new Error(result?.message);
                     }
                     results.push(result.data);
+                    chg.applied = new Date();
                     valid.push(chg);
                 }
                 catch (error) {
                     this.logger?.error({
                         flow: req.flow,
                         src: 'Delta:Migration:Commit',
-                        message: `❌ Failed to commit change ${chg.id}: ${(error as Error).message}`
+                        message: `❌ Failed to commit change '${chg.name}': ${(error as Error).message}`,
+                        data: chg
                     });
                     break;
                 }

@@ -65,12 +65,7 @@ export class MdbTracker extends BaseTracker {
                     data: []
                 };
             }
-
-            const result = await this.collection.insertMany(changes.map(c => ({
-                ...c,
-                date: new Date()
-            })));
-
+            const result = await this.collection.insertMany(changes);
             return {
                 success: result.acknowledged,
                 data: result.insertedIds
