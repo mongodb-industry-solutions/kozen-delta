@@ -16,23 +16,20 @@ export class MdbTracker extends BaseTracker {
         this.mdb = new MdbClient();
     }
 
-    async configure(request: IRequest): Promise<ISource> {
-        if (this.client) {
-            return {
-                config: {
-                    db: this.db,
-                    client: this.client,
-                    collection: this.collection
-                }
-            };
-        }
+    /**
+     * Gets the name of the collection used for tracking.
+     */
+    public get collectionName(): string {
+        return this.mdb.options.collection || "delta_migrations";
+    }
 
-        this.client = await this.mdb.connect({}, request.params);
-        this.db = this.mdb.db();
-
-        const collectionName = this.mdb.options.collection || "delta_migrations";
+    /**
+     * Sets up the tracking collection in the database.
+     * @returns The collection used for tracking.
+     */
+    async setup(): Promise<Collection> {
+        const collectionName = this.collectionName;
         const collections = await this.db.listCollections({ name: collectionName }).toArray();
-
         if (collections.length === 0) {
             await this.db.createCollection(collectionName);
             this.collection = this.db.collection(collectionName);
@@ -44,7 +41,26 @@ export class MdbTracker extends BaseTracker {
         } else {
             this.collection = this.mdb.collection(collectionName);
         }
-
+        return this.collection;
+    }
+    /**
+     * Configures the tracker with the given request.
+     * @param request Optional request parameters.
+     * @returns The source configuration.
+     */
+    async configure(request: IRequest): Promise<ISource> {
+        if (this.client) {
+            return {
+                config: {
+                    db: this.db,
+                    client: this.client,
+                    collection: this.collection
+                }
+            };
+        }
+        this.client = await this.mdb.connect({}, request.params);
+        this.db = this.mdb.db();
+        await this.setup();
         return {
             config: {
                 db: this.db,
@@ -54,6 +70,12 @@ export class MdbTracker extends BaseTracker {
         };
     }
 
+    /**
+     * Adds new changes to the tracker.
+     * @param changes Array of changes to add.
+     * @param request Optional request parameters.
+     * @returns The result of the add operation.
+     */
     async add(changes: Array<IChange>, request?: IRequest): Promise<IResult> {
         try {
             if (!this.collection) await this.configure(request || {});
@@ -78,6 +100,12 @@ export class MdbTracker extends BaseTracker {
         }
     }
 
+    /**
+     * Deletes applied changes from the tracker.
+     * @param changes Array of changes to delete.
+     * @param request Optional request parameters.
+     * @returns The result of the delete operation.
+     */
     async delete(changes: Array<IChange>, request?: IRequest): Promise<IResult> {
         try {
             if (!this.collection) await this.configure(request || {});
@@ -97,6 +125,11 @@ export class MdbTracker extends BaseTracker {
         }
     }
 
+    /**
+     * Lists all applied changes.
+     * @param request Optional request parameters.
+     * @returns A promise that resolves to an array of applied changes.
+     */
     async list(request?: IRequest): Promise<Array<IChange>> {
         if (!this.collection) await this.configure(request || {});
         return await this.collection
@@ -113,6 +146,11 @@ export class MdbTracker extends BaseTracker {
             .toArray() as IChange[];
     }
 
+    /**
+     * Gets the last applied change.
+     * @param request Optional request parameters.
+     * @returns The last applied change.
+     */
     async last(request?: IRequest): Promise<IChange> {
         if (!this.collection) await this.configure(request || {});
         const res = await this.collection
@@ -121,5 +159,17 @@ export class MdbTracker extends BaseTracker {
             .limit(1)
             .toArray();
         return res[0] as IChange;
+    }
+
+    /**
+     * Validates if a file has a supported extension.
+     * @param file The name of the file to validate.
+     * @param path The path of the file.
+     * @param request Optional request parameters.
+     * @returns A boolean indicating whether the file is valid.
+     */
+    protected validate(file: string, path: string, request?: IRequest): boolean {
+        const valid = file.endsWith('.js') || file.endsWith('.cjs') || file.endsWith('.mjs');
+        return valid || (request?.extension && file.endsWith(`.${request.extension}`) || !request?.extension);
     }
 }
