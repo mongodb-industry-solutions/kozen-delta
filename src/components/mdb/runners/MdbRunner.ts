@@ -75,8 +75,10 @@ export class MdbRunner extends BaseRunner {
                 action,
                 [{
                     db: this.client.db(),
+                    coll: this.client.coll({ session }),
                     collection: this.client.collection(),
                     assistant: this.assistant,
+                    client: this.client,
                     session
                 }]
             );

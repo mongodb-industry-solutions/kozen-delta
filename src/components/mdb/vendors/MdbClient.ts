@@ -152,8 +152,12 @@ export class MdbClient {
      * @param collectionName Collection name
      * @param session Optional active session
      */
-    public coll(collectionName: string, session?: ClientSession): Collection {
-        const collection = this.collection(collectionName);
+    public coll(options?: { name?: string, session?: ClientSession }): Collection {
+        const { name, session } = options || {};
+        const collection = this.collection(name);
+        if (!session) {
+            return collection;
+        }
         return new Proxy(collection, {
             get(target, propKey: keyof Collection<Document>) {
                 const prop = target[propKey];
