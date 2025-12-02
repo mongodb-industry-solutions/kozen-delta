@@ -111,8 +111,11 @@ export class MdbTracker extends BaseTracker {
     async delete(changes: Array<IChange>, request?: IRequest): Promise<IResult> {
         try {
             await this.configure(request || {});
-            const ids = changes.map(c => c.id);
-            const result = await this.collection.deleteMany({ id: { $in: ids } });
+            // Map the `changes` array to `file` and `name` pairs for deletion
+            const conditions = changes.map(c => ({ file: c.file, name: c.name }));
+
+            // Perform deleteMany on the collection using `$or` to match any `file` and `name` pair
+            const result = await this.collection.deleteMany({ $or: conditions });
             return {
                 success: result.acknowledged,
                 data: result.deletedCount
