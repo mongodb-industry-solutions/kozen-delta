@@ -15,6 +15,11 @@ export abstract class BaseTracker implements ITracker {
     abstract list(request?: IRequest): Promise<Array<IChange>>;
     protected abstract last(request?: IRequest): Promise<IChange>;
 
+    /**
+     * Extracts metadata from the target string.
+     * @param target The target string to extract metadata from.
+     * @returns An object containing the name and created date.
+     */
     protected meta(target: string) {
         let parts = target.split('.');
         let created = strToDate(parts[0]);
@@ -24,34 +29,72 @@ export abstract class BaseTracker implements ITracker {
         }
     }
 
+    /**
+     * Validates if the file has the correct extension.
+     * @param file The name of the file to validate.
+     * @param path The path where the file is located.
+     * @param request Optional request object containing validation parameters.
+     * @returns True if the file is valid, false otherwise.
+     */
+    protected validate(file: string, path: string, request?: IRequest): boolean {
+        return request?.extension && file.endsWith(`.${request.extension}`) || !request?.extension;
+    }
+
+    /**
+     * Gets the stats of a file.
+     * @param filePath The path of the file to get stats for
+     * @param request Optional request object containing parameters for stat retrieval
+     * @returns A promise that resolves to the file stats
+     */
+    protected async stat(filePath: string, request?: IRequest): Promise<Stats> {
+        return request?.stat ? await stat(filePath) : { isFile: () => true } as Stats;
+    }
+
+    /**
+     * Scans the specified directory for changes.
+     * @param path The directory path to scan for changes
+     * @param request Optional request object containing parameters for scanning
+     * @returns A promise that resolves to an array of changes found in the directory
+     */
     protected async scan(path: string, request?: IRequest): Promise<Array<IChange>> {
         const changes: Array<IChange> = [];
+        request = request || {} as IRequest;
         try {
             const files = await readdir(path);
             for (const file of files) {
-                const isValidExtension = request?.extension && file.endsWith(`.${request.extension}`) || !request?.extension;
+                const isValidExtension = this.validate(file, path, request);
+                if (!isValidExtension) continue;
+                const parsed = parse(file);
+                const fileMeta = this.meta(parsed.name);
                 const filePath = join(path, file);
-                const fileStat = request?.stat ? await stat(filePath) : { isFile: () => true } as Stats;
-                if (fileStat.isFile() && isValidExtension) {
-                    const parsed = parse(file);
-                    const meta = this.meta(parsed.name);
-                    changes.push({
-                        name: meta.name,
-                        file: filePath,
-                        path: dirname(filePath),
-                        extension: parsed.ext.replace('.', ''),
-                        created: meta.created || undefined
-                    });
-                }
+                request.stat = fileMeta.created ? request?.stat : true;
+                const fileStat = await this.stat(filePath, request);
+                if (!fileStat.isFile()) continue;
+                changes.push({
+                    name: fileMeta.name,
+                    file: filePath,
+                    path: dirname(filePath),
+                    extension: parsed.ext.replace('.', ''),
+                    created: fileMeta.created || fileStat.birthtime || undefined
+                });
             }
             // Sort by name (which includes timestamp) to ensure sequential order
-            // changes.sort((a, b) => (a.created || "").localeCompare(b.created || ""));
+            changes.sort((a, b) => {
+                const dateA = a.created ? new Date(a.created) : new Date(0);
+                const dateB = b.created ? new Date(b.created) : new Date(0);
+                return dateA.getTime() - dateB.getTime();
+            });
         } catch (error) {
             console.error(`Error reading directory ${path}:`, error);
         }
         return changes;
     }
 
+    /**
+     * Gets the available changes based on the request parameters.
+     * @param request Optional request object containing parameters for availability check
+     * @returns A promise that resolves to an array of available changes
+     */
     async available(request: IRequest): Promise<Array<IChange>> {
         const path = request.path || process.cwd();
         const allFiles = await this.scan(path, request);
@@ -60,6 +103,11 @@ export abstract class BaseTracker implements ITracker {
         return result;
     }
 
+    /**
+     * Gets the status of migrations.
+     * @param request Optional request object containing parameters for status check
+     * @returns A promise that resolves to the status result
+     */
     async status(request?: IRequest): Promise<IResult> {
         const req = request || {} as IRequest;
         const path = req.path || process.cwd();
@@ -107,6 +155,11 @@ export abstract class BaseTracker implements ITracker {
         };
     }
 
+    /**
+     * Gets the missing changes that should have been applied.
+     * @param request Optional request object containing parameters for missing check
+     * @returns A promise that resolves to an array of missing changes
+     */
     async missing(request: IRequest): Promise<Array<IChange>> {
         const path = request.path || process.cwd();
         const allFiles = await this.scan(path);
