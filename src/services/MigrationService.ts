@@ -3,10 +3,12 @@ import { IRequest } from "../models/Request";
 import { IResult } from "../models/Result";
 import { IRunner } from "../models/Runner";
 import { ISource } from "../models/Source";
+import { IMigrator } from "../models/Migrator";
 import { ITracker } from "../models/Tracker";
 import { BaseService } from "@kozen/engine";
+import { IChange } from "@/models/Change";
 
-export class MigrationService extends BaseService implements IRunner {
+export class MigrationService extends BaseService implements IMigrator {
 
     protected prefixRunner?: string = 'delta:runner';
     protected prefixTracker?: string = 'delta:tracker';
@@ -197,5 +199,21 @@ export class MigrationService extends BaseService implements IRunner {
             });
             throw error;
         }
+    }
+
+    add(changes: Array<IChange>, request?: IRequest): Promise<IResult> {
+        throw new Error("Method not implemented.");
+    }
+    delete(changes: Array<IChange>, request?: IRequest): Promise<IResult> {
+        throw new Error("Method not implemented.");
+    }
+    list(request?: IRequest): Promise<Array<IChange>> {
+        throw new Error("Method not implemented.");
+    }
+    available(request: IRequest): Promise<Array<IChange>> {
+        throw new Error("Method not implemented.");
+    }
+    missing(request: IRequest): Promise<Array<IChange>> {
+        throw new Error("Method not implemented.");
     }
 }

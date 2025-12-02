@@ -8,6 +8,7 @@ import path from 'node:path';
 import { CLIController, IArgs, IConfig, IModule } from '@kozen/engine';
 import { IRunner } from '@/models/Runner';
 import { IRequest } from '@/models/Request';
+import { IMigrator } from '@/models/Migrator';
 
 /**
  * @class DeltaCLIController
@@ -15,6 +16,28 @@ import { IRequest } from '@/models/Request';
  * @description Controller class for managing triggers via CLI
  */
 export class DeltaCLIController extends CLIController {
+
+    public async status(options: IRequest): Promise<{ await: boolean }> {
+        try {
+            const migration = await this.assistant?.get<IMigrator>('delta:service');
+            options.flow = options.flow || this.getId(options as unknown as IConfig);
+            const rs = await migration?.status(options);
+            this.logger?.info({
+                flow: options.flow,
+                src: 'Delta:Controller:Status',
+                message: `✅ Status retrieved successfully`,
+                data: rs?.data
+            });
+            return { await: true };
+        } catch (error) {
+            this.logger?.error({
+                flow: this.getId(options as unknown as IConfig),
+                src: 'Delta:Controller:Status',
+                message: `❌ Failed to get status: ${(error as Error).message}`
+            });
+            return { await: false };
+        }
+    }
 
     /**
      * Rolls back the last applied change using the delta service.
@@ -91,12 +114,12 @@ export class DeltaCLIController extends CLIController {
         (params.filterId || KOZEN_DELTA_FILTER_ID) && (parsed.filter.id = params.filterId || KOZEN_DELTA_FILTER_ID);
         (params.filterName || KOZEN_DELTA_FILTER_NAME) && (parsed.filter.name = params.filterName || KOZEN_DELTA_FILTER_NAME);
         (params.filterFile || KOZEN_DELTA_FILTER_FILE) && (parsed.filter.file = params.filterFile || KOZEN_DELTA_FILTER_FILE);
-        (params.filterDate || KOZEN_DELTA_FILTER_DATE) && (parsed.filter.date = new Date(params.filterDate || KOZEN_DELTA_FILTER_DATE as string));
+        (params.filterDate || KOZEN_DELTA_FILTER_DATE) && (parsed.filter.created = new Date(params.filterDate || KOZEN_DELTA_FILTER_DATE as string));
         (params.filterType || KOZEN_DELTA_FILTER_TYPE) && (parsed.filter.type = params.filterType || KOZEN_DELTA_FILTER_TYPE);
         if (!Object.keys(parsed.filter).length) {
             parsed.filter.count = 1;
         }
-        
+
         parsed.stat = params.stat || (KOZEN_DELTA_STAT === 'true');
         parsed.path = params.path || KOZEN_DELTA_PATH || process.cwd();
         parsed.extension = (params.extension || KOZEN_DELTA_EXTENSION || 'js').toLowerCase();

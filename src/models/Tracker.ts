@@ -48,3 +48,10 @@ export interface ITracker {
      */
     missing(request: IRequest): Promise<Array<IChange>>;
 }
+
+export interface ITrackerInfo {
+    last?: IChange | null;
+    available?: Array<IChange>;
+    applied?: Array<IChange>;
+    missing?: Array<IChange>;
+}

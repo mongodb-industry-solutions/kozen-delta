@@ -3,6 +3,7 @@ import { IChange } from "../../../models/Change";
 import { IRequest } from "../../../models/Request";
 import { IResult } from "../../../models/Result";
 import { ISource } from "../../../models/Source";
+import { ITrackerInfo } from "../../../models/Tracker";
 import { MdbClient, MongoClient, Db, Collection } from "../vendors/MdbClient";
 
 export class MdbTracker extends BaseTracker {
@@ -170,5 +171,56 @@ export class MdbTracker extends BaseTracker {
     protected validate(file: string, path: string, request?: IRequest): boolean {
         const valid = file.endsWith('.js') || file.endsWith('.cjs') || file.endsWith('.mjs');
         return valid || (request?.extension && file.endsWith(`.${request.extension}`) || !request?.extension);
+    }
+
+    /**
+     * Gets the missing changes that should have been applied.
+     * @param request Optional request object containing parameters for missing check
+     * @returns A promise that resolves to an array of missing changes
+     */
+    async missing(request?: IRequest, info?: ITrackerInfo): Promise<Array<IChange>> {
+        // Configure the request (setup, authentication, etc.)
+        await this.configure(request || {});
+
+        // Get the info object containing `missing`, `last`, and any available data
+        const { last, applied } = info || await this.info(request);
+
+        // Ensure `last.created` is defined and valid for filtering
+        const lastCreated = last?.created ? new Date(last.created) : null;
+
+        // Build the query for efficient filtering
+        const query: Record<string, any> = {};
+
+        if(!applied || applied.length === 0) {
+            return [];
+        }
+
+        // Exclude records where BOTH `file` AND `name` match `applied`
+        query.$or = applied.map(({ file, name }) => ({ file, name }));
+
+        // Check only for records created before or on the `last.created` date
+        if (lastCreated) {
+            query.created = { $lte: lastCreated };
+        }
+
+        // Use projection to limit the fields in the result
+        const projection = { file: 1, name: 1, created: 1 };
+
+        // Execute the query
+        const result = await this.collection.find(query).project(projection).toArray();
+
+
+        // Construct a Set of `file` and `name` pairs found in the collection for quick lookups
+        const existingSet = new Set<string>(
+            result.map(({ file, name }) => `${file}:${name}`)
+        );
+
+        // Find the items in `applied` that are NOT in the collection
+        const missing = applied?.filter(({ file, name }) => {
+            const key = `${file}:${name}`;
+            return !existingSet.has(key); // Include items that are not in the collection
+        });
+
+        return missing as IChange[];
     }
 }
