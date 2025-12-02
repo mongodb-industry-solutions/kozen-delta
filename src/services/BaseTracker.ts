@@ -99,7 +99,7 @@ export abstract class BaseTracker implements ITracker {
      * @param request Optional request object containing parameters for info retrieval
      * @returns A promise that resolves to the tracker information
      */
-    async info(request?: IRequest): Promise<ITrackerInfo> {
+    public async info(request?: IRequest): Promise<ITrackerInfo> {
         const filter: IFilter = request?.filter || {};
         const path = request?.path || process.cwd();
         const last = await this.last(request);
@@ -124,12 +124,17 @@ export abstract class BaseTracker implements ITracker {
             }
         );
         // Limit the number of results if `filter.count` is defined
-        const available = filter.count ? allFiles.slice(0, filter.count) : allFiles;
+        const { first: available, second: ignored } = this.listSplit<IChange>(allFiles, filter.count || 0);
+
         return {
-            last,
-            available,
-            applied,
-            missing: []
+            filter,
+            migrations: {
+                last,
+                available,
+                applied,
+                ignored,
+                missing: []
+            }
         }
     }
 
@@ -138,10 +143,10 @@ export abstract class BaseTracker implements ITracker {
      * @param request Optional request object containing parameters for status check
      * @returns A promise that resolves to the status result
      */
-    async status(request?: IRequest): Promise<IResult> {
+    public async status(request?: IRequest): Promise<IResult> {
         const content = await this.info(request);
-        const applied = content.applied || [];
-        const last = content.last || null;
+        const applied = content.migrations?.applied || [];
+        const last = content.migrations?.last || null;
         const [missing, available] = await Promise.all([
             this.missing(request, content),
             this.available(request, content)
@@ -150,10 +155,14 @@ export abstract class BaseTracker implements ITracker {
             success: true,
             message: "Status retrieved successfully",
             data: {
-                last: basename(last?.file || ''),
-                applied: applied?.map(c => basename(c.file || '')),
-                missing: missing?.map(c => basename(c.file || '')),
-                available: available?.map(c => basename(c.file || '')),
+                filter: content.filter,
+                migrations: {
+                    last: basename(last?.file || ''),
+                    applied: applied?.map(c => basename(c.file || '')),
+                    missing: missing?.map(c => basename(c.file || '')),
+                    ignored: content.migrations?.ignored?.map(c => basename(c.file || '')),
+                    available: available?.map(c => basename(c.file || '')),
+                }
             }
         };
     }
@@ -163,9 +172,9 @@ export abstract class BaseTracker implements ITracker {
      * @param request Optional request object containing parameters for availability check
      * @returns A promise that resolves to an array of available changes
      */
-    async available(request?: IRequest, info?: ITrackerInfo): Promise<Array<IChange>> {
-        const { available } = info || await this.info(request);
-        return available || [];
+    public async available(request?: IRequest, info?: ITrackerInfo): Promise<Array<IChange>> {
+        const { migrations } = info || await this.info(request);
+        return migrations?.available || [];
     }
 
     /**
@@ -173,8 +182,23 @@ export abstract class BaseTracker implements ITracker {
      * @param request Optional request object containing parameters for missing check
      * @returns A promise that resolves to an array of missing changes
      */
-    async missing(request?: IRequest, info?: ITrackerInfo): Promise<Array<IChange>> {
-        const { missing } = info || await this.info(request);
-        return missing || [];
+    public async missing(request?: IRequest, info?: ITrackerInfo): Promise<Array<IChange>> {
+        const { migrations } = info || await this.info(request);
+        return migrations?.missing || [];
+    }
+
+    /**
+     * Splits an array into chunks of a specified size.
+     * @param list The original array to be split.
+     * @param count The size of each chunk.
+     * @returns An array of arrays, where each inner array is a chunk of the original array.
+     */
+    protected listSplit<T = any>(list: T[], count: number = 0): { first: T[]; second: T[] } {
+        if (!count) {
+            return { first: list, second: [] };
+        }
+        const first = list.slice(0, count);
+        const second = list.slice(count);
+        return { first, second };
     }
 }

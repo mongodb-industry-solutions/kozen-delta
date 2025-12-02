@@ -1,4 +1,5 @@
 import { IChange } from "./Change";
+import { IFilter } from "./Filter";
 import { IRequest } from "./Request";
 import { IResult } from "./Result";
 import { ISource } from "./Source";
@@ -50,8 +51,12 @@ export interface ITracker {
 }
 
 export interface ITrackerInfo {
-    last?: IChange | null;
-    available?: Array<IChange>;
-    applied?: Array<IChange>;
-    missing?: Array<IChange>;
+    filter?: IFilter;
+    migrations?: {
+        last?: IChange | null;
+        available?: Array<IChange>;
+        applied?: Array<IChange>;
+        missing?: Array<IChange>;
+        ignored?: Array<IChange>;
+    }
 }

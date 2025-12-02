@@ -183,7 +183,8 @@ export class MdbTracker extends BaseTracker {
         await this.configure(request || {});
 
         // Get the info object containing `missing`, `last`, and any available data
-        const { last, applied } = info || await this.info(request);
+        info = info || await this.info(request);
+        const { last, applied } = info.migrations || {};
 
         // Ensure `last.created` is defined and valid for filtering
         const lastCreated = last?.created ? new Date(last.created) : null;
@@ -191,7 +192,7 @@ export class MdbTracker extends BaseTracker {
         // Build the query for efficient filtering
         const query: Record<string, any> = {};
 
-        if(!applied || applied.length === 0) {
+        if (!applied || applied.length === 0) {
             return [];
         }
 
@@ -208,7 +209,6 @@ export class MdbTracker extends BaseTracker {
 
         // Execute the query
         const result = await this.collection.find(query).project(projection).toArray();
-
 
         // Construct a Set of `file` and `name` pairs found in the collection for quick lookups
         const existingSet = new Set<string>(
