@@ -7,7 +7,7 @@
 import path from 'node:path';
 import { CLIController, IArgs, IConfig, IModule } from '@kozen/engine';
 import { IRunner } from '@/models/Runner';
-import { IRequest } from '@/models/Request';
+import { IDeltaAction, IRequest } from '@/models/Request';
 import { IMigrator } from '@/models/Migrator';
 
 /**
@@ -129,6 +129,7 @@ export class DeltaCLIController extends CLIController {
 
         (params.prefix || KOZEN_DELTA_PREFIX) && (params.prefix = params.prefix || KOZEN_DELTA_PREFIX);
         (params.tag || KOZEN_DELTA_TAG) && (parsed.tag = params.tag || KOZEN_DELTA_TAG);
+        params.action = parsed.action as IDeltaAction;
 
         return parsed as IArgs;
     }
