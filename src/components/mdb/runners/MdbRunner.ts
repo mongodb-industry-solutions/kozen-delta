@@ -5,9 +5,9 @@ import { IChange } from "../../../models/Change";
 import { IRequest } from "../../../models/Request";
 import { IResult } from "../../../models/Result";
 import { ISource } from "../../../models/Source";
+import { IMigration } from "../../../models/Migration";
 import { MdbClient } from "../vendors/MdbClient";
 import { BaseRunner } from "../../../services/BaseRunner";
-import { IMigration } from "@/models/Migration";
 
 export class MdbRunner extends BaseRunner {
 
