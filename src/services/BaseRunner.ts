@@ -9,20 +9,56 @@ import { promises as fs } from 'node:fs';
 
 export abstract class BaseRunner implements IRunner {
 
+    /**
+     * The IoC assistant for dependency management.
+     */
     public assistant: IIoC;
+
+    /**
+     * The logger for logging messages.
+     */
     public logger: ILogger;
 
+    /**
+     * Constructs a new BaseRunner instance.
+     * @param options The options for initializing the BaseRunner.
+     */
     constructor({ assistant, logger }: { assistant: IIoC; logger: ILogger }) {
         this.assistant = assistant;
         this.logger = logger;
     }
 
+    /**
+     * Configures the runner with the given request.
+     * @param request Optional request parameters.
+     */
     abstract configure(request: IRequest): Promise<ISource>;
+
+    /**
+     * Compares the current state with the desired state.
+     * @param request Optional request parameters.
+     */
     abstract compare(request?: IRequest): Promise<IResult>;
+
+    /**
+     * Checks if a change can be applied.
+     * @param change The change to check.
+     * @param request Optional request parameters.
+     */
     abstract check(change: IChange, request?: IRequest): Promise<IResult>;
+
+    /**
+     * Creates a new migration file.
+     * @param request Optional request parameters.
+     */
     abstract create(request?: IRequest): Promise<IResult>;
 
-
+    /**
+     * Commits a change.
+     * @param change The change to commit.
+     * @param request Optional request parameters.
+     * @returns The result of the commit operation.
+     */
     public async commit(change: IChange, request?: IRequest): Promise<IResult> {
         await this.configure(request || {});
         if (change.type !== undefined && change.type !== 'module') {
@@ -37,6 +73,12 @@ export abstract class BaseRunner implements IRunner {
         }
     }
 
+    /**
+     * Rolls back a committed change.
+     * @param change The change to roll back.
+     * @param request Optional request parameters.
+     * @returns The result of the rollback operation.
+     */
     public async rollback(change: IChange, request?: IRequest): Promise<IResult> {
         await this.configure(request || {});
         if (change.type !== 'module') {
