@@ -32,7 +32,7 @@ export class MdbTracker extends BaseTracker {
         const collections = await this.db.listCollections({ name: collectionName }).toArray();
         if (collections.length === 0) {
             await this.db.createCollection(collectionName);
-            this.collection = this.db.collection(collectionName);
+            this.collection = this.mdb.collection(collectionName);
             await this.collection.createIndexes([
                 { key: { created: -1 } },
                 { key: { owner: 1 } },
@@ -40,6 +40,9 @@ export class MdbTracker extends BaseTracker {
             ]);
         } else {
             this.collection = this.mdb.collection(collectionName);
+        }
+        if (!(this.collection instanceof Collection)) {
+            throw new Error("Collection not properly initialized after setup.");
         }
         return this.collection;
     }
@@ -78,15 +81,15 @@ export class MdbTracker extends BaseTracker {
      */
     async add(changes: Array<IChange>, request?: IRequest): Promise<IResult> {
         try {
-            if (!this.collection) await this.configure(request || {});
-            if (changes.length === 0) {
+            await this.configure(request || {});
+            if (!Array.isArray(changes) || changes.length === 0) {
                 return {
                     success: true,
                     message: "No changes to add",
                     data: []
                 };
             }
-            const result = await this.collection.insertMany(changes);
+            const result = await this.collection.insertMany(changes, { ordered: false });
             return {
                 success: result.acknowledged,
                 data: result.insertedIds
@@ -107,11 +110,9 @@ export class MdbTracker extends BaseTracker {
      */
     async delete(changes: Array<IChange>, request?: IRequest): Promise<IResult> {
         try {
-            if (!this.collection) await this.configure(request || {});
-
+            await this.configure(request || {});
             const ids = changes.map(c => c.id);
             const result = await this.collection.deleteMany({ id: { $in: ids } });
-
             return {
                 success: result.acknowledged,
                 data: result.deletedCount
@@ -130,7 +131,7 @@ export class MdbTracker extends BaseTracker {
      * @returns A promise that resolves to an array of applied changes.
      */
     async list(request?: IRequest): Promise<Array<IChange>> {
-        if (!this.collection) await this.configure(request || {});
+        await this.configure(request || {});
         return await this.collection
             .find({}, {
                 projection: {
@@ -151,10 +152,10 @@ export class MdbTracker extends BaseTracker {
      * @returns The last applied change.
      */
     async last(request?: IRequest): Promise<IChange> {
-        if (!this.collection) await this.configure(request || {});
+        await this.configure(request || {});
         const res = await this.collection
             .find({})
-            .sort({ date: -1 })
+            .sort({ created: -1 })
             .limit(1)
             .toArray();
         return res[0] as IChange;
