@@ -1,0 +1,21 @@
+{
+    "delta:runner:bin": {
+        "target": "BinRunner",
+        "type": "class",
+        "lifetime": "transient",
+        "category": "delta:component",
+        "path": "components/bin/runners",
+        "dependencies": [
+            {
+                "key": "assistant",
+                "target": "IoC",
+                "type": "ref"
+            },
+            {
+                "key": "logger",
+                "target": "logger:service",
+                "type": "ref"
+            }
+        ]
+    }
+}
