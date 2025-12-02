@@ -3,9 +3,10 @@ import { IChange } from "../models/Change";
 import { IRequest } from "../models/Request";
 import { IResult } from "../models/Result";
 import { ISource } from "../models/Source";
-import { ITracker } from "../models/Tracker";
+import { IFilter, IFilterFn } from "../models/Filter";
+import { ITracker, ITrackerInfo } from "../models/Tracker";
 import { readdir, stat } from "fs/promises";
-import { join, parse, dirname } from "path";
+import { join, parse, dirname, basename } from "path";
 import { strToDate } from "@kozen/engine";
 
 export abstract class BaseTracker implements ITracker {
@@ -56,8 +57,9 @@ export abstract class BaseTracker implements ITracker {
      * @param request Optional request object containing parameters for scanning
      * @returns A promise that resolves to an array of changes found in the directory
      */
-    protected async scan(path: string, request?: IRequest): Promise<Array<IChange>> {
-        const changes: Array<IChange> = [];
+    protected async scan(path: string, request?: IRequest, filter?: IFilterFn): Promise<{ available: Array<IChange>, missing: Array<IChange> }> {
+        const available: Array<IChange> = [];
+        const missing: Array<IChange> = [];
         request = request || {} as IRequest;
         try {
             const files = await readdir(path);
@@ -70,16 +72,18 @@ export abstract class BaseTracker implements ITracker {
                 request.stat = fileMeta.created ? request?.stat : true;
                 const fileStat = await this.stat(filePath, request);
                 if (!fileStat.isFile()) continue;
-                changes.push({
+                const change: IChange = {
                     name: fileMeta.name,
                     file: filePath,
                     path: dirname(filePath),
                     extension: parsed.ext.replace('.', ''),
                     created: fileMeta.created || fileStat.birthtime || undefined
-                });
+                }
+                const isValid = filter instanceof Function ? await filter(change) : true;
+                isValid ? available.push(change) : missing.push(change);
             }
             // Sort by name (which includes timestamp) to ensure sequential order
-            changes.sort((a, b) => {
+            available.sort((a, b) => {
                 const dateA = a.created ? new Date(a.created) : new Date(0);
                 const dateB = b.created ? new Date(b.created) : new Date(0);
                 return dateA.getTime() - dateB.getTime();
@@ -87,20 +91,46 @@ export abstract class BaseTracker implements ITracker {
         } catch (error) {
             console.error(`Error reading directory ${path}:`, error);
         }
-        return changes;
+        return { available, missing };
     }
 
     /**
-     * Gets the available changes based on the request parameters.
-     * @param request Optional request object containing parameters for availability check
-     * @returns A promise that resolves to an array of available changes
+     * Gets tracker information including last applied change, available changes, applied changes, and missing changes.
+     * @param request Optional request object containing parameters for info retrieval
+     * @returns A promise that resolves to the tracker information
      */
-    async available(request: IRequest): Promise<Array<IChange>> {
-        const path = request.path || process.cwd();
-        const allFiles = await this.scan(path, request);
-        const lastApplied = await this.last(request);
-        const result = lastApplied ? allFiles.filter(change => change && (change.created || "") > (lastApplied.created || "")) : allFiles;
-        return result;
+    async info(request?: IRequest): Promise<ITrackerInfo> {
+        const filter: IFilter = request?.filter || {};
+        const path = request?.path || process.cwd();
+        const last = await this.last(request);
+        const { available: allFiles, missing: applied } = await this.scan(
+            path,
+            request,
+            async (change: IChange) => {
+                let answer = true;
+                // Start with filtering by `created` relative to `last`
+                if (last?.created) {
+                    const changeCreated = change.created ? new Date(change.created) : null;
+                    const appliedCreated = new Date(last.created);
+                    answer = !!(changeCreated && changeCreated > appliedCreated);
+                }
+                // Apply name-based filtering if `filter.name` is provided
+                if (filter.name) {
+                    const regex = new RegExp(filter.name || '.*');
+                    const doesMatch = regex.test(change.file || '');
+                    answer = filter.type === 'exclude' ? !doesMatch : doesMatch;
+                }
+                return Promise.resolve(answer);
+            }
+        );
+        // Limit the number of results if `filter.count` is defined
+        const available = filter.count ? allFiles.slice(0, filter.count) : allFiles;
+        return {
+            last,
+            available,
+            applied,
+            missing: []
+        }
     }
 
     /**
@@ -109,50 +139,33 @@ export abstract class BaseTracker implements ITracker {
      * @returns A promise that resolves to the status result
      */
     async status(request?: IRequest): Promise<IResult> {
-        const req = request || {} as IRequest;
-        const path = req.path || process.cwd();
-
-        const allFiles = await this.scan(path);
-        const appliedChanges = await this.list(req);
-
-        // Sort for consistent logic
-        allFiles.sort((a, b) => (a.id || "").localeCompare(b.id || ""));
-        appliedChanges.sort((a, b) => (a.id || "").localeCompare(b.id || ""));
-
-        const appliedIds = new Set(appliedChanges.map(c => c.id || ""));
-        const lastApplied = appliedChanges.length > 0 ? appliedChanges[appliedChanges.length - 1] : null;
-
-        const pending: Array<IChange> = [];
-        const lost: Array<IChange> = [];
-
-        if (lastApplied) {
-            for (const file of allFiles) {
-                if ((file.id || "") > (lastApplied.id || "")) {
-                    pending.push(file);
-                } else if (!appliedIds.has(file.id || "")) {
-                    // It's older or equal to last applied, but not in the applied list
-                    lost.push(file);
-                }
-            }
-        } else {
-            // Nothing applied, everything is pending
-            pending.push(...allFiles);
-        }
-
+        const content = await this.info(request);
+        const applied = content.applied || [];
+        const last = content.last || null;
+        const [missing, available] = await Promise.all([
+            this.missing(request, content),
+            this.available(request, content)
+        ]);
         return {
             success: true,
             message: "Status retrieved successfully",
             data: {
-                applied: appliedChanges.length,
-                last_applied: lastApplied,
-                pending: pending.length,
-                lost: lost.length,
-                details: {
-                    pending_files: pending.map(c => c.name),
-                    lost_files: lost.map(c => c.name)
-                }
+                last: basename(last?.file || ''),
+                applied: applied?.map(c => basename(c.file || '')),
+                missing: missing?.map(c => basename(c.file || '')),
+                available: available?.map(c => basename(c.file || '')),
             }
         };
+    }
+
+    /**
+     * Gets the available changes based on the request parameters.
+     * @param request Optional request object containing parameters for availability check
+     * @returns A promise that resolves to an array of available changes
+     */
+    async available(request?: IRequest, info?: ITrackerInfo): Promise<Array<IChange>> {
+        const { available } = info || await this.info(request);
+        return available || [];
     }
 
     /**
@@ -160,23 +173,8 @@ export abstract class BaseTracker implements ITracker {
      * @param request Optional request object containing parameters for missing check
      * @returns A promise that resolves to an array of missing changes
      */
-    async missing(request: IRequest): Promise<Array<IChange>> {
-        const path = request.path || process.cwd();
-        const allFiles = await this.scan(path);
-        const appliedChanges = await this.list(request);
-
-        if (appliedChanges.length === 0) {
-            return [];
-        }
-
-        appliedChanges.sort((a, b) => (a.id || "").localeCompare(b.id || ""));
-        const lastApplied = appliedChanges[appliedChanges.length - 1];
-        const appliedIds = new Set(appliedChanges.map(c => c.id || ""));
-
-        // Filter files that are older or equal to last applied, but not in applied list
-        return allFiles.filter(change =>
-            (change.id || "") <= (lastApplied.id || "") &&
-            !appliedIds.has(change.id || "")
-        );
+    async missing(request?: IRequest, info?: ITrackerInfo): Promise<Array<IChange>> {
+        const { missing } = info || await this.info(request);
+        return missing || [];
     }
 }
