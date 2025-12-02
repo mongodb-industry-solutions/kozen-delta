@@ -51,7 +51,15 @@ export class MigrationService extends BaseService implements IRunner {
                     break;
                 }
             }
-            await tracker?.add(valid, req);
+            const awaited = await tracker?.add(valid, req);
+            this.logger?.info({
+                flow: req.flow,
+                src: 'Delta:Migration:Commit',
+                message: `✅ Successfully committed ${awaited?.data?.length || 0} changes.`,
+                data: {
+                    migrations: valid.map(c => c.name)
+                }
+            });
             return {
                 success: true,
                 message: 'Commit successful',

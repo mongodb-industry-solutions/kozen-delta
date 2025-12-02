@@ -35,8 +35,7 @@ export class MdbTracker extends BaseTracker {
             this.collection = this.mdb.collection(collectionName);
             await this.collection.createIndexes([
                 { key: { created: -1 } },
-                { key: { owner: 1 } },
-                { key: { id: 1 }, unique: true }
+                { key: { owner: 1 } }
             ]);
         } else {
             this.collection = this.mdb.collection(collectionName);
@@ -89,7 +88,7 @@ export class MdbTracker extends BaseTracker {
                     data: []
                 };
             }
-            const result = await this.collection.insertMany(changes, { ordered: false });
+            const result = await this.collection.insertMany(changes, { ordered: true });
             return {
                 success: result.acknowledged,
                 data: result.insertedIds
