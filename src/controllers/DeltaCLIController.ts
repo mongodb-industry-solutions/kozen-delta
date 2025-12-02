@@ -103,12 +103,13 @@ export class DeltaCLIController extends CLIController {
             KOZEN_DELTA_FILTER_NAME,
             KOZEN_DELTA_FILTER_FILE,
             KOZEN_DELTA_FILTER_DATE,
-            KOZEN_DELTA_FILTER_TYPE
+            KOZEN_DELTA_FILTER_TYPE,
+            KOZEN_DELTA_FILTER
         } = process.env;
 
         let params: Partial<IArgs> = this.extract(args);
         let parsed: IRequest = { params };
-
+        let filter = KOZEN_DELTA_FILTER || params.filter;
         parsed.filter = parsed.filter || {};
         (params.count || KOZEN_DELTA_FILTER_COUNT) && (parsed.filter.count = Number(params.count || KOZEN_DELTA_FILTER_COUNT));
         (params.filterId || KOZEN_DELTA_FILTER_ID) && (parsed.filter.id = params.filterId || KOZEN_DELTA_FILTER_ID);
@@ -116,7 +117,7 @@ export class DeltaCLIController extends CLIController {
         (params.filterFile || KOZEN_DELTA_FILTER_FILE) && (parsed.filter.file = params.filterFile || KOZEN_DELTA_FILTER_FILE);
         (params.filterDate || KOZEN_DELTA_FILTER_DATE) && (parsed.filter.created = new Date(params.filterDate || KOZEN_DELTA_FILTER_DATE as string));
         (params.filterType || KOZEN_DELTA_FILTER_TYPE) && (parsed.filter.type = params.filterType || KOZEN_DELTA_FILTER_TYPE);
-        if (!Object.keys(parsed.filter).length) {
+        if (!Object.keys(parsed.filter).length && (filter === 'true' || filter === undefined)) {
             parsed.filter.count = 1;
         }
 

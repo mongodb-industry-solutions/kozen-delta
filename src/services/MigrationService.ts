@@ -60,6 +60,7 @@ export class MigrationService extends BaseService implements IMigrator {
                 src: 'Delta:Migration:Commit',
                 message: `✅ Successfully committed ${Object.keys(awaited?.data || {}).length || 0} changes.`,
                 data: {
+                    filter: req?.filter,
                     migrations: valid.map(c => path.basename(c.file || c.name || ''))
                 }
             });
@@ -107,6 +108,7 @@ export class MigrationService extends BaseService implements IMigrator {
                 src: 'Delta:Migration:Rollback',
                 message: `✅ Successfully committed ${Object.keys(awaited?.data || {}).length || 0} changes.`,
                 data: {
+                    filter: req?.filter,
                     migrations: valid.map(c => path.basename(c.file || c.name || ''))
                 }
             });
