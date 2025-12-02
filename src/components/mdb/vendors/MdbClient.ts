@@ -5,7 +5,7 @@
  * @version 1.0.6
  */
 
-import { Collection, MongoClient, MongoClientOptions } from "mongodb";
+import { ClientSession, Collection, Document, MongoClient, MongoClientOptions } from "mongodb";
 import { ILogger, IIoC } from "@kozen/engine";
 import { IMdbClientOpt } from "./MdbClientOpt";
 import AWS from 'aws-sdk';
@@ -41,11 +41,18 @@ export class MdbClient {
      * @returns {IMdbClientOpt} The current report manager configuration
      * @throws {Error} When configuration is not initialized
      */
-    get options(): IMdbClientOpt {
+    public get options(): IMdbClientOpt {
         return this._options!;
     }
 
-    get driver(): MongoClient | null {
+    /**
+     * Gets the MongoDB client instance
+     * @public
+     * @readonly
+     * @type {MongoClient | null}
+     * @returns {MongoClient | null} The MongoDB client instance
+     */
+    public get driver(): MongoClient | null {
         return this.client;
     }
 
@@ -56,12 +63,17 @@ export class MdbClient {
      */
     protected client: MongoClient | null = null;
 
-    isConnected(): boolean {
+    /**
+     * Checks if the MongoDB client is connected
+     * @public
+     * @returns {boolean} Indicates whether the MongoDB client is connected.
+     */
+    public isConnected(): boolean {
         return this.client !== null;
     }
+
     /**
      * Initializes the MongoDB client and encryption settings.
-     * @private
      * @param {IMdbClientOpt} [options] - MongoDB options for configuration.
      * @returns {Promise<MongoClient>} Promise resolving the MongoDB client instance.
      * @throws {Error} If MongoDB connection or encryption setup fails.
@@ -101,7 +113,12 @@ export class MdbClient {
         return this.client;
     }
 
-    db(database?: string): Idb {
+    /**
+     * Gets a database instance from the MongoDB client.
+     * @param database Optional database name
+     * @returns The MongoDB database instance.
+     */
+    public db(database?: string): Idb {
         database = database || this.options.database;
         if (!database) {
             throw new Error("Database name must be specified in the request parameters or environment variables.");
@@ -116,7 +133,13 @@ export class MdbClient {
         return db;
     }
 
-    collection(collection?: string, database?: string): Collection {
+    /**
+     * Gets a collection instance from the specified database.
+     * @param collection Collection name
+     * @param database Optional database name
+     * @returns The MongoDB collection instance.
+     */
+    public collection(collection?: string, database?: string): Collection {
         collection = collection || this.options.collection;
         if (!collection) {
             throw new Error("Collection name must be specified in the request parameters or environment variables.");
@@ -124,7 +147,37 @@ export class MdbClient {
         return this.db(database).collection(collection);
     }
 
-    transaction() {
+    /**
+     * Wraps a collection instance in a Proxy to automatically append session
+     * @param collectionName Collection name
+     * @param session Optional active session
+     */
+    public coll(collectionName: string, session?: ClientSession): Collection {
+        const collection = this.collection(collectionName);
+        return new Proxy(collection, {
+            get(target, propKey: keyof Collection<Document>) {
+                const prop = target[propKey];
+                if (typeof prop === "function") {
+                    return (...args: any[]) => {
+                        const options = args[args.length - 1];
+                        if (typeof options === "object" && options !== null && !options.session) {
+                            options.session = session;
+                        } else if (typeof options !== "object" || options === null) {
+                            args.push({ session });
+                        }
+                        return (prop as unknown as (...args: unknown[]) => unknown).apply(target, args);
+                    };
+                }
+                return prop;
+            },
+        });
+    }
+
+    /**
+     * Creates a new MongoDB client session for transactions.
+     * @returns {ClientSession} The MongoDB client session.
+     */
+    public transaction(): ClientSession {
         if (!this.client) {
             throw new Error("MongoDB client is not connected. Call connect() first.");
         }
