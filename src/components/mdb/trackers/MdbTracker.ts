@@ -34,7 +34,7 @@ export class MdbTracker extends BaseTracker {
             await this.db.createCollection(collectionName);
             this.collection = this.db.collection(collectionName);
             await this.collection.createIndexes([
-                { key: { date: -1 } },
+                { key: { created: -1 } },
                 { key: { owner: 1 } },
                 { key: { id: 1 }, unique: true }
             ]);
@@ -79,7 +79,6 @@ export class MdbTracker extends BaseTracker {
     async add(changes: Array<IChange>, request?: IRequest): Promise<IResult> {
         try {
             if (!this.collection) await this.configure(request || {});
-
             if (changes.length === 0) {
                 return {
                     success: true,
