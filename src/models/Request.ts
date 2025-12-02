@@ -1,5 +1,6 @@
-import { info } from "console";
 import { IFilter } from "./Filter";
+
+export type IDeltaAction = 'commit' | 'rollback' | 'status' | 'compare';
 
 /**
  * @module models/Request
@@ -16,4 +17,5 @@ export interface IRequest {
     filter?: IFilter;
     params?: any;
     stat?: boolean;
+    action?: IDeltaAction;
 }
