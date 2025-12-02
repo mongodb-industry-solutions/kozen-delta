@@ -1,0 +1,21 @@
+{
+  "delta:tracker:sqlite": {
+    "target": "SqliteTracker",
+    "type": "class",
+    "lifetime": "transient",
+    "path": "components/sqlite/trackers",
+    "category": "delta:component",
+    "dependencies": [
+      {
+        "key": "assistant",
+        "target": "IoC",
+        "type": "ref"
+      },
+      {
+        "key": "logger",
+        "target": "logger:service",
+        "type": "ref"
+      }
+    ]
+  }
+}

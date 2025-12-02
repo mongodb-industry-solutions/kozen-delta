@@ -1,0 +1,10 @@
+{
+  "modules": {
+    "load": [
+      {
+        "name": "delta",
+        "target": "C:\\data\\dev\\kozen-delta\\src"
+      }
+    ]
+  }
+}

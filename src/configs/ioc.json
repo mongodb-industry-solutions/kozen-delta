@@ -1,0 +1,20 @@
+{
+  "delta:service": {
+    "target": "MigrationService",
+    "type": "class",
+    "lifetime": "transient",
+    "path": "services",
+    "dependencies": [
+      {
+        "key": "assistant",
+        "target": "IoC",
+        "type": "ref"
+      },
+      {
+        "key": "logger",
+        "target": "logger:service",
+        "type": "ref"
+      }
+    ]
+  }
+}

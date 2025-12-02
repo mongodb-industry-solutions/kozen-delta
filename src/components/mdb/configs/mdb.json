@@ -1,0 +1,61 @@
+{
+  "l1": {
+    "replicaSet": ["MDB_REPLICA_SET", "mdbReplicaSet"],
+    "timeoutMS": ["MDB_TIMEOUT_MS", "mdbTimeoutMS"],
+    "tls": ["MDB_TLS", "mdbTls"],
+    "ssl": ["MDB_SSL", "mdbSsl"],
+    "tlsCertificateKeyFile": [
+      "MDB_TLS_CERTIFICATE_KEY_FILE",
+      "mdbTlsCertificateKeyFile"
+    ],
+    "tlsCertificateKeyFilePassword": [
+      "MDB_TLS_CERTIFICATE_KEY_FILE_PASSWORD",
+      "mdbTlsCertificateKeyFilePassword"
+    ],
+    "tlsCAFile": ["MDB_TLS_CA_FILE", "mdbTlsCAFile"],
+    "tlsCRLFile": ["MDB_TLS_CRL_FILE", "mdbTlsCRLFile"],
+    "tlsAllowInvalidCertificates": [
+      "MDB_TLS_ALLOW_INVALID_CERTIFICATES",
+      "mdbTlsAllowInvalidCertificates"
+    ],
+    "tlsAllowInvalidHostnames": [
+      "MDB_TLS_ALLOW_INVALID_HOSTNAMES",
+      "mdbTlsAllowInvalidHostnames"
+    ],
+    "tlsInsecure": ["MDB_TLS_INSECURE", "mdbTlsInsecure"],
+    "connectTimeoutMS": ["MDB_CONNECT_TIMEOUT_MS", "mdbConnectTimeoutMS"],
+    "socketTimeoutMS": ["MDB_SOCKET_TIMEOUT_MS", "mdbSocketTimeoutMS"],
+    "compressors": ["MDB_COMPRESSORS", "mdbCompressors"],
+    "zlibCompressionLevel": [
+      "MDB_ZLIB_COMPRESSION_LEVEL",
+      "mdbZlibCompressionLevel"
+    ],
+    "srvMaxHosts": ["MDB_SRV_MAX_HOSTS", "mdbSrvMaxHosts"],
+    "srvServiceName": ["MDB_SRV_SERVICE_NAME", "mdbSrvServiceName"],
+    "maxPoolSize": ["MDB_MAX_POOL_SIZE", "mdbMaxPoolSize"],
+    "minPoolSize": ["MDB_MIN_POOL_SIZE", "mdbMinPoolSize"],
+    "maxConnecting": ["MDB_MAX_CONNECTING", "mdbMaxConnecting"],
+    "maxIdleTimeMS": ["MDB_MAX_IDLE_TIME_MS", "mdbMaxIdleTimeMS"],
+    "waitQueueTimeoutMS": [
+      "MDB_WAIT_QUEUE_TIMEOUT_MS",
+      "mdbWaitQueueTimeoutMS"
+    ],
+    "readConcernLevel": ["MDB_READ_CONCERN_LEVEL", "mdbReadConcernLevel"],
+    "readPreference": ["MDB_READ_PREFERENCE", "mdbReadPreference"],
+    "authMechanism": ["MDB_AUTH_MECHANISM", "mdbAuthMechanism"],
+    "authSource": ["MDB_AUTH_SOURCE", "mdbAuthSource"]
+  },
+  "l2": {
+    "auth.username": ["MDB_USERNAME", "mdbAuthUsername"],
+    "auth.password": ["MDB_PASSWORD", "mdbAuthPassword"],
+    "writeConcern.w": ["MDB_WRITE_CONCERN_W", "mdbWriteConcernW"],
+    "writeConcern.journal": [
+      "MDB_WRITE_CONCERN_JOURNAL",
+      "mdbWriteConcernJournal"
+    ],
+    "writeConcern.wtimeoutMS": [
+      "MDB_WRITE_CONCERN_WTIMEOUT_MS",
+      "mdbWriteConcernWTimeoutMS"
+    ]
+  }
+}
