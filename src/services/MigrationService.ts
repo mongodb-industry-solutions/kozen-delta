@@ -1,3 +1,4 @@
+import path from "path";
 import { IRequest } from "../models/Request";
 import { IResult } from "../models/Result";
 import { IRunner } from "../models/Runner";
@@ -55,9 +56,9 @@ export class MigrationService extends BaseService implements IRunner {
             this.logger?.info({
                 flow: req.flow,
                 src: 'Delta:Migration:Commit',
-                message: `✅ Successfully committed ${awaited?.data?.length || 0} changes.`,
+                message: `✅ Successfully committed ${Object.keys(awaited?.data || {}).length || 0} changes.`,
                 data: {
-                    migrations: valid.map(c => c.name)
+                    migrations: valid.map(c => path.basename(c.file || c.name || ''))
                 }
             });
             return {
@@ -93,12 +94,20 @@ export class MigrationService extends BaseService implements IRunner {
                     this.logger?.error({
                         flow: req.flow,
                         src: 'Delta:Migration:Rollback',
-                        message: `❌ Failed to rollback change ${chg.id}: ${(error as Error).message}`
+                        message: `❌ Failed to rollback change ${chg.name}: ${(error as Error).message}`
                     });
                     break;
                 }
             }
-            await tracker?.delete(valid, req);
+            const awaited = await tracker?.delete(valid, req);
+            this.logger?.info({
+                flow: req.flow,
+                src: 'Delta:Migration:Rollback',
+                message: `✅ Successfully committed ${Object.keys(awaited?.data || {}).length || 0} changes.`,
+                data: {
+                    migrations: valid.map(c => path.basename(c.file || c.name || ''))
+                }
+            });
             return {
                 success: true,
                 message: 'Rollback successful',
