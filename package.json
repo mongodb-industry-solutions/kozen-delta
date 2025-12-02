@@ -50,6 +50,7 @@
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
+    "@mongosh/types": "^3.14.0",
     "@types/node": "^18.19.127",
     "copyfiles": "^2.4.1",
     "cross-env": "^7.0.3",
