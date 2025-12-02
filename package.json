@@ -1,6 +1,6 @@
 {
   "name": "@kozen/delta",
-  "version": "1.0.5",
+  "version": "0.0.5",
   "description": "Module for the Kozen framework that provides support for CaC",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
