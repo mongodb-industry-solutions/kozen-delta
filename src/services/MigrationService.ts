@@ -83,7 +83,7 @@ export class MigrationService extends BaseService implements IMigrator {
             const results = [];
             const valid = [];
             const { runner, tracker } = await this.getDrivers(req);
-            const list = await tracker?.list(req) || [];
+            const list = await tracker?.available(req) || [];
             for (const chg of list) {
                 try {
                     const result = await runner?.rollback(chg, req);

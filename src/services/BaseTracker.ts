@@ -124,7 +124,8 @@ export abstract class BaseTracker implements ITracker {
             }
         );
         // Limit the number of results if `filter.count` is defined
-        const { first: available, second: ignored } = this.listSplit<IChange>(allFiles, filter.count || 0);
+        const tmp = request?.action === 'rollback' ? applied.reverse() : allFiles;
+        const { first: available, second: ignored } = this.listSplit<IChange>(tmp, filter.count || 0);
 
         return {
             filter,

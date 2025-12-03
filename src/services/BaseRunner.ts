@@ -81,8 +81,8 @@ export abstract class BaseRunner implements IRunner {
      */
     public async rollback(change: IChange, request?: IRequest): Promise<IResult> {
         await this.configure(request || {});
-        if (change.type !== 'module') {
-            return { success: false, message: "Only 'module' type changes are supported for rollback." };
+        if (change.type !== undefined && change.type !== 'module') {
+            return { success: false, message: "Only 'module' type changes are supported for commit." };
         } else {
             try {
                 const data = await this.runModule(change, 'rollback');
