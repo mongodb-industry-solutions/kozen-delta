@@ -45,9 +45,9 @@
   "dependencies": {
     "@kozen/engine": "^1.1.14",
     "@mongosh/shell-api": "^3.28.0",
-    "aws-sdk": "^2.1692.0",
+    "aws-sdk": "^2.1693.0",
     "mongodb": "^6.17.0",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^6.0.1"
   },
   "devDependencies": {
     "@mongosh/types": "^3.14.0",

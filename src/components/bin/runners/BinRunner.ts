@@ -7,7 +7,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { existsSync } from "fs";
 import { writeFile, readFile } from "fs/promises";
-import { join } from "path";
+import { join, resolve } from "path";
 
 const execAsync = promisify(exec);
 
@@ -31,8 +31,15 @@ export class BinRunner implements IRunner {
             const commitTemplate = await readFile(join(templatePath, 'commit.sh'), 'utf-8');
             const rollbackTemplate = await readFile(join(templatePath, 'rollback.sh'), 'utf-8');
 
-            await writeFile(join(path, commitFile), commitTemplate, { mode: 0o755 });
-            await writeFile(join(path, rollbackFile), rollbackTemplate, { mode: 0o755 });
+            const resolvedBase = resolve(path);
+            const commitPath = resolve(path, commitFile);
+            const rollbackPath = resolve(path, rollbackFile);
+            if (!commitPath.startsWith(resolvedBase) || !rollbackPath.startsWith(resolvedBase)) {
+                return { success: false, message: "Invalid path: directory traversal detected" };
+            }
+
+            await writeFile(commitPath, commitTemplate, { mode: 0o755 });
+            await writeFile(rollbackPath, rollbackTemplate, { mode: 0o755 });
 
             return {
                 success: true,
