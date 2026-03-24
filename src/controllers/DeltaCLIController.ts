@@ -126,10 +126,10 @@ export class DeltaCLIController extends CLIController {
         parsed.extension = (params.extension || KOZEN_DELTA_EXTENSION || 'js').toLowerCase();
         parsed.runner = (params.runner || KOZEN_DELTA_RUNNER || 'mdb').toLowerCase();
         parsed.tracker = (params.tracker || KOZEN_DELTA_TRACKER || parsed.runner).toLowerCase();
+        parsed.action = params.action as IDeltaAction;
 
         (params.prefix || KOZEN_DELTA_PREFIX) && (params.prefix = params.prefix || KOZEN_DELTA_PREFIX);
         (params.tag || KOZEN_DELTA_TAG) && (parsed.tag = params.tag || KOZEN_DELTA_TAG);
-        params.action = parsed.action as IDeltaAction;
 
         return parsed as IArgs;
     }
