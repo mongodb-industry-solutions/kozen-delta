@@ -6,7 +6,7 @@ import { ISource } from "../models/Source";
 import { IFilter, IFilterFn } from "../models/Filter";
 import { ITracker, ITrackerInfo } from "../models/Tracker";
 import { readdir, stat } from "fs/promises";
-import { join, parse, dirname, basename } from "path";
+import { join, parse, dirname, basename, resolve } from "path";
 import { strToDate } from "@kozen/engine";
 
 export abstract class BaseTracker implements ITracker {
@@ -69,6 +69,8 @@ export abstract class BaseTracker implements ITracker {
                 const parsed = parse(file);
                 const fileMeta = this.meta(parsed.name);
                 const filePath = join(path, file);
+                const resolvedBase = resolve(path);
+                if (!resolve(filePath).startsWith(resolvedBase)) continue;
                 request.stat = fileMeta.created ? request?.stat : true;
                 const fileStat = await this.stat(filePath, request);
                 if (!fileStat.isFile()) continue;
@@ -89,7 +91,7 @@ export abstract class BaseTracker implements ITracker {
                 return dateA.getTime() - dateB.getTime();
             });
         } catch (error) {
-            console.error(`Error reading directory ${path}:`, error);
+            console.error("Error reading directory %s:", path, error);
         }
         return { available, missing };
     }
@@ -116,7 +118,8 @@ export abstract class BaseTracker implements ITracker {
                 }
                 // Apply name-based filtering if `filter.name` is provided
                 if (filter.name) {
-                    const regex = new RegExp(filter.name || '.*');
+                    const escaped = filter.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = new RegExp(escaped);
                     const doesMatch = regex.test(change.file || '');
                     answer = filter.type === 'exclude' ? !doesMatch : doesMatch;
                 }

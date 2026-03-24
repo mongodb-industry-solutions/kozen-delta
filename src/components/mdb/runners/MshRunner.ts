@@ -1,6 +1,6 @@
 
 import { writeFile } from "fs/promises";
-import { join } from "path";
+import { resolve } from "path";
 import { timeToStr } from "@kozen/engine";
 
 import { IRequest } from "../../../models/Request";
@@ -72,8 +72,12 @@ export class MshRunner extends BaseRunner {
         const name = req.params?.name || "migration";
         const path = req.path || process.cwd();
         const timestamp = timeToStr();
-        const commitFile = join(path, `${timestamp}.${name}.commit.js`);
-        const rollbackFile = join(path, `${timestamp}.${name}.rollback.js`);
+        const resolvedBase = resolve(path);
+        const commitFile = resolve(path, `${timestamp}.${name}.commit.js`);
+        const rollbackFile = resolve(path, `${timestamp}.${name}.rollback.js`);
+        if (!commitFile.startsWith(resolvedBase) || !rollbackFile.startsWith(resolvedBase)) {
+            return { success: false, message: "Invalid path: directory traversal detected" };
+        }
         try {
             // Read templates
             await Promise.all([

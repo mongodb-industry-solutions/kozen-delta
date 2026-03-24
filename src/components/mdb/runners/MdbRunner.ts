@@ -1,6 +1,6 @@
 
 import { writeFile, readFile } from "fs/promises";
-import { join } from "path";
+import { join, resolve } from "path";
 import { IChange } from "../../../models/Change";
 import { IRequest } from "../../../models/Request";
 import { IResult } from "../../../models/Result";
@@ -27,7 +27,13 @@ export class MdbRunner extends BaseRunner {
             const templatePath = join(__dirname, '../../templates/mdb');
             const template = await readFile(join(templatePath, 'migration.ts'), 'utf-8');
 
-            await writeFile(join(path, fileName), template, { mode: 0o644 });
+            const resolvedBase = resolve(path);
+            const filePath = resolve(path, fileName);
+            if (!filePath.startsWith(resolvedBase)) {
+                return { success: false, message: "Invalid path: directory traversal detected" };
+            }
+
+            await writeFile(filePath, template, { mode: 0o644 });
 
             return {
                 success: true,
