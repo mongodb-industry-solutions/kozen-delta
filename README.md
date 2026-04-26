@@ -1,8 +1,21 @@
 # 🏠 Kozen Delta Module
 
-### MongoDB Change Management Module
+## MongoDB Change Management Module
 
 This module is designed to simplify the process of managing database changes in MongoDB for application developers. It allows developers to implement database migrations, track changes, and ensure consistency across environments in an efficient and developer-friendly way. Inspired by tools like Liquibase and Flyway, this module is optimized for MongoDB's NoSQL schema structure and built using modern technologies like Node.js and TypeScript to leverage a flexible, event-driven architecture.
+
+---
+
+## Disclaimer
+
+This repository was created as part of an initiative to promote best practices for integrating solutions with MongoDB. It is distributed under the [Apache 2.0 license](./LICENSE) and is open source. However, please note that this repository is **not actively maintained** by the MongoDB team, nor is it part of MongoDB's official product catalog.
+
+The use of this repository in production environments is solely at your own discretion and risk. MongoDB does not provide any guarantees, warranties, or technical support for this repository. Furthermore, MongoDB shall **not be held liable** for any issues, bugs, or damages caused by its use or implementation.
+
+Please carefully evaluate suitability and perform thorough testing before using this resource in a production environment.
+
+Thank you for understanding,
+The MongoDB Team
 
 ---
 
